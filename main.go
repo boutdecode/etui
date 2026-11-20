@@ -13,14 +13,23 @@ import (
 	"boutdecode/etui/internal/theme"
 )
 
+// version est injectée au build via -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
+	showVersion := flag.Bool("version", false, "affiche la version et quitte")
 	themeFlag := flag.String("theme", "auto", "thème : auto, light ou dark")
 	transparent := flag.Bool("transparent", false, "garde le fond du terminal au lieu du fond du thème")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage : etui [--theme=auto|light|dark] [--transparent] [dossier | fichier...]\n")
+		fmt.Fprintf(os.Stderr, "Usage : etui [--theme=auto|light|dark] [--transparent] [--version] [dossier | fichier...]\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("etui", version)
+		return
+	}
 
 	mode, err := theme.ParseMode(*themeFlag)
 	if err != nil {
