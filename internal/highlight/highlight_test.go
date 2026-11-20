@@ -17,23 +17,23 @@ func runes(ss ...string) [][]rune {
 func TestByFilename(t *testing.T) {
 	h := New("main.go", "")
 	if h.Language() != "Go" {
-		t.Fatalf("langage = %q", h.Language())
+		t.Fatalf("language = %q", h.Language())
 	}
 	toks := h.Tokens(runes("package main", "func é() {}"))
 	if toks == nil || len(toks) != 2 {
 		t.Fatalf("tokens = %v", toks)
 	}
 	if !toks[0][0].InCategory(chroma.Keyword) {
-		t.Errorf("« package » devrait être un mot-clé, obtenu %v", toks[0][0])
+		t.Errorf("\"package\" should be a keyword, got %v", toks[0][0])
 	}
 	if len(toks[1]) != len([]rune("func é() {}")) {
-		t.Errorf("une entrée par rune attendue")
+		t.Errorf("one entry per rune expected")
 	}
 }
 
 func TestFallbackContentAndPlain(t *testing.T) {
 	if New("notes.unknownext", "").Language() != "texte" {
-		t.Error("texte brut attendu")
+		t.Error("plain text expected")
 	}
 	if New("", "").Tokens(runes("abc")) != nil {
 		t.Error("nil attendu sans lexer")

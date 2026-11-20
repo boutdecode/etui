@@ -20,7 +20,7 @@ func TestResolve(t *testing.T) {
 			want = ChromaDark
 		}
 		if th.Chroma.Name != want {
-			t.Errorf("style chroma = %q, attendu %q", th.Chroma.Name, want)
+			t.Errorf("chroma style = %q, want %q", th.Chroma.Name, want)
 		}
 	}
 }
@@ -33,9 +33,9 @@ func TestParseModeAndNext(t *testing.T) {
 		}
 	}
 	if _, err := ParseMode("x"); err == nil {
-		t.Error("erreur attendue")
+		t.Error("an error is expected")
 	}
 	if Auto.Next() != Light || Light.Next() != Dark || Dark.Next() != Auto {
-		t.Error("cycle incorrect")
+		t.Error("wrong cycle")
 	}
 }

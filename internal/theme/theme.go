@@ -1,5 +1,5 @@
-// Package theme définit les thèmes clair et sombre de l'interface et le
-// choix du style Chroma associé.
+// Package theme defines the light and dark themes of the interface and the
+// choice of the matching Chroma style.
 package theme
 
 import (
@@ -14,7 +14,7 @@ import (
 	"boutdecode/etui/internal/i18n"
 )
 
-// Mode est le réglage demandé par l'utilisateur.
+// Mode is the setting requested by the user.
 type Mode int
 
 const (
@@ -45,10 +45,10 @@ func (m Mode) Label() string {
 	return i18n.T(i18n.ThemeAuto)
 }
 
-// Next fait défiler auto → clair → sombre → auto.
+// Next cycles auto → light → dark → auto.
 func (m Mode) Next() Mode { return (m + 1) % 3 }
 
-// ParseMode lit la valeur du flag --theme.
+// ParseMode reads the value of the --theme flag.
 func ParseMode(s string) (Mode, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "", "auto":
@@ -61,13 +61,13 @@ func ParseMode(s string) (Mode, error) {
 	return Auto, fmt.Errorf(i18n.T(i18n.ErrUnknownTheme), s)
 }
 
-// Noms des styles Chroma utilisés.
+// Names of the Chroma styles in use.
 const (
 	ChromaDark  = "dracula"
 	ChromaLight = "github"
 )
 
-// Theme regroupe toutes les couleurs de l'interface.
+// Theme groups all the colours of the interface.
 type Theme struct {
 	Dark   bool
 	Chroma *chroma.Style
@@ -91,10 +91,10 @@ type Theme struct {
 	Error           color.Color
 	ExplorerDirFg   color.Color
 	ExplorerSelBg   color.Color
-	ExplorerSelBgNF color.Color // sélection quand l'explorateur n'a pas le focus
+	ExplorerSelBgNF color.Color // selection when the explorer does not have focus
 }
 
-// Resolve choisit le thème selon le mode demandé et le fond détecté.
+// Resolve picks the theme from the requested mode and the detected background.
 func Resolve(mode Mode, detectedDark bool) Theme {
 	switch mode {
 	case Light:
@@ -136,8 +136,8 @@ func light() Theme {
 	}
 }
 
-// TokenStyle convertit un type de jeton Chroma en style lipgloss (premier plan,
-// gras, italique, souligné ; jamais de fond, qui est géré par les superpositions).
+// TokenStyle converts a Chroma token type to a lipgloss style (foreground,
+// bold, italic, underline; never a background, which is handled by the overlays).
 func (t Theme) TokenStyle(tt chroma.TokenType) lipgloss.Style {
 	st := lipgloss.NewStyle()
 	if t.Chroma == nil {

@@ -79,7 +79,7 @@ func TestOpenSameFileActivatesTab(t *testing.T) {
 	}
 	m.Update(explorer.OpenFileMsg{Path: filepath.Join(m.explorer.Root(), "a.go")})
 	if len(m.Tabs()) != 2 || m.active != 0 {
-		t.Fatalf("un fichier déjà ouvert doit activer son onglet : %d/%d", len(m.Tabs()), m.active)
+		t.Fatalf("opening an already-open file must activate its tab: %d/%d", len(m.Tabs()), m.active)
 	}
 }
 
@@ -89,17 +89,17 @@ func TestCloseActiveTabAndSwitch(t *testing.T) {
 	if m.active != 0 {
 		t.Fatal("alt+gauche")
 	}
-	send(m, "alt+left") // circulaire
+	send(m, "alt+left") // wraps around
 	if m.active != 1 {
 		t.Fatalf("circulaire : %d", m.active)
 	}
 	send(m, "ctrl+w")
 	if len(m.Tabs()) != 1 || m.ActiveEditor().Name() != "a.go" {
-		t.Fatalf("après fermeture : %d %v", len(m.Tabs()), m.ActiveEditor())
+		t.Fatalf("after closing: %d %v", len(m.Tabs()), m.ActiveEditor())
 	}
 	send(m, "ctrl+w")
 	if len(m.Tabs()) != 0 || m.ActiveEditor() != nil || m.focus != focusExplorer {
-		t.Fatal("tout fermé : focus sur l'explorateur")
+		t.Fatal("all tabs closed: focus must go to the explorer")
 	}
 	if v := m.View(); v.Content == "" {
 		t.Fatal("la vue sans onglet doit rester rendue")
@@ -118,13 +118,13 @@ func TestCloseModifiedTabPrompt(t *testing.T) {
 		t.Fatal("annulation")
 	}
 	send(m, "ctrl+w")
-	send(m, "n") // fermer sans enregistrer
+	send(m, "n") // close without saving
 	if len(m.Tabs()) != 0 {
 		t.Fatal("fermeture sans enregistrer")
 	}
 	data, _ := os.ReadFile(filepath.Join(m.explorer.Root(), "b.txt"))
 	if string(data) != "bonjour\nmonde\n" {
-		t.Fatalf("le fichier ne devait pas changer : %q", data)
+		t.Fatalf("the file must not change: %q", data)
 	}
 
 	m.openFile(filepath.Join(m.explorer.Root(), "b.txt"))
@@ -133,7 +133,7 @@ func TestCloseModifiedTabPrompt(t *testing.T) {
 	send(m, "y") // save, then close
 	data, _ = os.ReadFile(filepath.Join(m.explorer.Root(), "b.txt"))
 	if len(m.Tabs()) != 0 || string(data) != "Ybonjour\nmonde\n" {
-		t.Fatalf("enregistrer + fermer : %d %q", len(m.Tabs()), data)
+		t.Fatalf("save + close: %d %q", len(m.Tabs()), data)
 	}
 }
 
@@ -158,18 +158,18 @@ func TestClipboardMultilineCopyCutPaste(t *testing.T) {
 	send(m, "ctrl+a")
 	send(m, "ctrl+c")
 	if cb.Text != "bonjour\nmonde\n" {
-		t.Fatalf("copié = %q", cb.Text)
+		t.Fatalf("copied = %q", cb.Text)
 	}
 	send(m, "ctrl+x")
 	if ed.Text() != "" {
-		t.Fatalf("après couper = %q", ed.Text())
+		t.Fatalf("after cut = %q", ed.Text())
 	}
 	send(m, "ctrl+v")
 	send(m, "ctrl+v")
 	if ed.Text() != "bonjour\nmonde\nbonjour\nmonde\n" {
-		t.Fatalf("après coller = %q", ed.Text())
+		t.Fatalf("after paste = %q", ed.Text())
 	}
-	send(m, "ctrl+z") // un seul undo par collage
+	send(m, "ctrl+z") // a single undo per paste
 	if ed.Text() != "bonjour\nmonde\n" {
 		t.Fatalf("undo du collage = %q", ed.Text())
 	}
@@ -191,7 +191,7 @@ func TestClipboardFallbackOSC52AndRegister(t *testing.T) {
 	send(m, "end")
 	send(m, "ctrl+v")
 	if !strings.HasSuffix(m.ActiveEditor().Text(), "bonjour\nmonde\n") || strings.Count(m.ActiveEditor().Text(), "bonjour") != 1 {
-		// ctrl+a puis End a replié la sélection ; le collage vient du registre interne
+		// ctrl+a then End collapsed the selection; the paste comes from the internal register
 		t.Logf("texte = %q", m.ActiveEditor().Text())
 	}
 	if m.register != "bonjour\nmonde\n" {
@@ -215,7 +215,7 @@ func TestSaveFlow(t *testing.T) {
 	send(m, "esc")
 	typeText(m, "B()")
 	if !m.ActiveEditor().Modified() {
-		t.Fatal("modifié")
+		t.Fatal("modified")
 	}
 	send(m, "ctrl+s")
 	if m.ActiveEditor().Modified() || !strings.Contains(m.Status(), "Saved") {
@@ -230,23 +230,23 @@ func TestSaveFlow(t *testing.T) {
 func TestThemeFollowsDetectedBackground(t *testing.T) {
 	m, _ := newApp(t)
 	if !m.Theme().Dark {
-		t.Fatal("repli sombre par défaut")
+		t.Fatal("dark must be the default fallback")
 	}
 	m.Update(tea.BackgroundColorMsg{Color: color.White})
 	if m.Theme().Dark || m.Theme().Chroma.Name != theme.ChromaLight {
-		t.Fatalf("fond clair → thème clair, obtenu %v/%s", m.Theme().Dark, m.Theme().Chroma.Name)
+		t.Fatalf("light background → light theme, got %v/%s", m.Theme().Dark, m.Theme().Chroma.Name)
 	}
 	m.Update(tea.BackgroundColorMsg{Color: color.Black})
 	if !m.Theme().Dark || m.Theme().Chroma.Name != theme.ChromaDark {
-		t.Fatal("fond sombre → thème sombre")
+		t.Fatal("dark background → dark theme")
 	}
-	send(m, "ctrl+t") // auto → clair, quel que soit le fond
+	send(m, "ctrl+t") // auto → light, whatever the background
 	if m.Theme().Dark || m.mode != theme.Light {
-		t.Fatal("forcer clair")
+		t.Fatal("forcing light")
 	}
 	m.Update(tea.BackgroundColorMsg{Color: color.Black})
 	if m.Theme().Dark {
-		t.Fatal("le mode forcé prime sur la détection")
+		t.Fatal("a forced mode must win over detection")
 	}
 }
 
@@ -274,22 +274,22 @@ func TestIntegrationTeatest(t *testing.T) {
 	m := New(Options{Dir: dir, Clip: &clip.Memory{}})
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(100, 30))
 
-	// ouvrir a.go depuis l'explorateur (premier fichier de la liste)
+	// open a.go from the explorer (first file in the list)
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("func")) },
 		teatest.WithDuration(3*time.Second))
-	// modifier, enregistrer
+	// edit, save
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnd, Mod: tea.ModCtrl})
 	tm.Type("// fin")
 	tm.Send(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
-	// ouvrir b.txt : retour explorateur, descendre, ouvrir
+	// open b.txt: back to the explorer, move down, open
 	tm.Send(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
-	// l'ouverture passe par un message asynchrone : attendre l'affichage du contenu
+	// opening goes through an asynchronous message: wait for the content to be displayed
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("bonjour")) },
 		teatest.WithDuration(3*time.Second))
-	// changer d'onglet puis quitter
+	// switch tabs, then quit
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt})
 	tm.Send(tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
 	fm := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
@@ -308,16 +308,16 @@ func TestExplorerSearchEscAndAsyncRouting(t *testing.T) {
 	m.focus = focusExplorer
 	cmd := send(m, "/")
 	if !m.explorer.Searching() || cmd == nil {
-		t.Fatal("recherche non démarrée")
+		t.Fatal("search not started")
 	}
 	send(m, "a")
-	m.Update(cmd()) // le résultat traverse app.Update
+	m.Update(cmd()) // the result goes through app.Update
 	if m.explorer.Query() != "a" {
-		t.Fatal("requête perdue")
+		t.Fatal("query lost")
 	}
 	send(m, "esc")
 	if m.explorer.Searching() || m.focus != focusExplorer {
-		t.Fatal("le premier Échap ferme la recherche et garde le focus")
+		t.Fatal("the first Esc must close the search and keep the focus")
 	}
 }
 
@@ -326,7 +326,7 @@ func TestViewPaintsThemeBackground(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 60, Height: 12})
 	const paint = "\x1b[38;2;228;224;245;48;2;20;18;31m"
 	if !strings.Contains(m.View().Content, paint) {
-		t.Fatal("le fond du thème doit être appliqué")
+		t.Fatal("the theme background must be applied")
 	}
 	m.transparent = true
 	if strings.Contains(m.View().Content, paint) {
@@ -354,7 +354,7 @@ func TestFrenchPromptAndHelp(t *testing.T) {
 	m.openFile(filepath.Join(m.explorer.Root(), "b.txt"))
 	typeText(m, "Y")
 	send(m, "ctrl+w")
-	send(m, "o") // "oui" saves and closes in French
+	send(m, "o") // "oui" (yes) saves and closes in French
 	data, _ := os.ReadFile(filepath.Join(m.explorer.Root(), "b.txt"))
 	if len(m.Tabs()) != 0 || string(data) != "Ybonjour\nmonde\n" {
 		t.Fatalf("French yes key: %d %q", len(m.Tabs()), data)

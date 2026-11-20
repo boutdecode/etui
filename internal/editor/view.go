@@ -12,17 +12,17 @@ import (
 	"boutdecode/etui/internal/theme"
 )
 
-// CursorPos est la position du curseur dans la zone rendue (relative à l'éditeur).
+// CursorPos is the cursor position in the rendered area (relative to the editor).
 type CursorPos struct {
 	X, Y    int
 	Visible bool
 }
 
-// cell est une cellule d'affichage issue d'une rune (une tabulation donne plusieurs cellules).
+// cell is a display cell coming from a rune (a tab gives several cells).
 type cell struct {
 	s  string
 	w  int
-	ri int // index de la rune source
+	ri int // index of the source rune
 }
 
 func expand(line []rune) []cell {
@@ -38,7 +38,7 @@ func expand(line []rune) []cell {
 			continue
 		}
 		w := runewidth.RuneWidth(r)
-		if r < 0x20 || r == 0x7f { // caractère de contrôle : affiché visiblement
+		if r < 0x20 || r == 0x7f { // control character: displayed visibly
 			cells = append(cells, cell{"·", 1, i})
 			x++
 			continue
@@ -49,18 +49,18 @@ func expand(line []rune) []cell {
 	return cells
 }
 
-// attr regroupe ce qui détermine le style d'une cellule.
-// Ordre de superposition (défini ici, une seule fois) :
+// attr groups what determines the style of a cell.
+// Overlay order (defined here, once):
 //
-//  1. coloration syntaxique (premier plan)
-//  2. ligne courante (fond)
-//  3. sélection (fond)
-//  4. occurrences de recherche (fond + premier plan), l'occurrence courante primant
+//  1. syntax highlighting (foreground)
+//  2. current line (background)
+//  3. selection (background)
+//  4. search matches (background + foreground), the current match taking precedence
 type attr struct {
 	tt      chroma.TokenType
 	curLine bool
 	sel     bool
-	match   int // 0 aucune, 1 occurrence, 2 occurrence courante
+	match   int // 0 none, 1 match, 2 current match
 }
 
 func styleFor(th theme.Theme, a attr, cache map[attr]lipgloss.Style) lipgloss.Style {
@@ -84,8 +84,8 @@ func styleFor(th theme.Theme, a attr, cache map[attr]lipgloss.Style) lipgloss.St
 	return st
 }
 
-// View rend l'éditeur : zone de texte (marge + contenu) puis barre de recherche éventuelle.
-// Chaque ligne fait exactement e.width colonnes.
+// View renders the editor: text area (gutter + content) then the search bar if any.
+// Each line is exactly e.width columns wide.
 func (e *Editor) View(th theme.Theme, focused bool) (string, CursorPos) {
 	w, th_ := e.width, e.textHeight()
 	if w <= 0 || e.height <= 0 {
@@ -127,7 +127,7 @@ func (e *Editor) View(th theme.Theme, focused bool) (string, CursorPos) {
 			toks = e.tokens[ln]
 		}
 		cells := expand(line)
-		if hasSel && ln >= selA.Line && ln < selZ.Line { // la sélection englobe le retour à la ligne
+		if hasSel && ln >= selA.Line && ln < selZ.Line { // the selection includes the line break
 			cells = append(cells, cell{" ", 1, len(line)})
 		}
 
@@ -178,14 +178,14 @@ func (e *Editor) View(th theme.Theme, focused bool) (string, CursorPos) {
 			x0 := x
 			x += c.w
 			if x0 < e.leftCol {
-				if x > e.leftCol { // caractère large coupé à gauche
+				if x > e.leftCol { // wide character cut off on the left
 					emit(" ", attrAt(c.ri))
 					used++
 				}
 				continue
 			}
 			if x > e.leftCol+tw {
-				if x0 < e.leftCol+tw { // coupé à droite
+				if x0 < e.leftCol+tw { // cut off on the right
 					emit(" ", attrAt(c.ri))
 					used++
 				}
@@ -229,7 +229,7 @@ func fit(s string, w int) string {
 	return s
 }
 
-// searchBar rend la barre de recherche et renvoie la position du curseur dans celle-ci.
+// searchBar renders the search bar and returns the cursor position within it.
 func (e *Editor) searchBar(th theme.Theme, w int) ([]string, int, int) {
 	s := &e.search
 	st := lipgloss.NewStyle().Background(th.StatusBg).Foreground(th.StatusFg)

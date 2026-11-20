@@ -1,4 +1,4 @@
-// Package explorer implémente un arbre de fichiers à chargement paresseux.
+// Package explorer implements a lazily loaded file tree.
 package explorer
 
 import (
@@ -16,7 +16,7 @@ import (
 	"boutdecode/etui/internal/theme"
 )
 
-// OpenFileMsg demande l'ouverture d'un fichier.
+// OpenFileMsg requests that a file be opened.
 type OpenFileMsg struct{ Path string }
 
 type node struct {
@@ -30,7 +30,7 @@ type node struct {
 	depth    int
 }
 
-// Model est l'explorateur.
+// Model is the explorer.
 type Model struct {
 	root       *node
 	showHidden bool
@@ -41,22 +41,22 @@ type Model struct {
 	rows       []*node
 	err        error
 
-	// recherche : pendant la saisie, rows/cursor/top désignent l'arbre éphémère
-	// et l'état de l'arbre réel est sauvegardé dans tree*.
+	// search: while typing, rows/cursor/top refer to the ephemeral tree
+	// and the state of the real tree is saved in tree*.
 	searching     bool
 	query         string
 	gen           int
 	cancel        context.CancelFunc
 	entries       []entry
 	scanning      bool
-	truncated     bool // résultats affichés tronqués
-	truncatedWalk bool // parcours tronqué
+	truncated     bool // displayed results truncated
+	truncatedWalk bool // walk truncated
 	treeRows      []*node
 	treeCursor    int
 	treeTop       int
 }
 
-// New crée un explorateur enraciné en dir.
+// New creates an explorer rooted at dir.
 func New(dir string) *Model {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
@@ -70,7 +70,7 @@ func New(dir string) *Model {
 
 func (m *Model) Root() string { return m.root.path }
 
-// Err renvoie la dernière erreur de lecture de dossier.
+// Err returns the last directory read error.
 func (m *Model) Err() error { return m.err }
 
 func (m *Model) SetSize(w, h int) {
@@ -80,7 +80,7 @@ func (m *Model) SetSize(w, h int) {
 
 func (m *Model) ShowHidden() bool { return m.showHidden }
 
-// load (re)lit les enfants d'un dossier en conservant l'état des sous-dossiers déjà connus.
+// load (re)reads the children of a directory, keeping the state of the subdirectories already known.
 func (m *Model) load(n *node) {
 	entries, err := os.ReadDir(n.path)
 	n.loaded = true
@@ -172,10 +172,10 @@ func (m *Model) bodyHeight() int {
 	if m.height-1 < 1 {
 		return 1
 	}
-	return m.height - 1 // une ligne d'en-tête
+	return m.height - 1 // one header line
 }
 
-// Selected renvoie le chemin sous le curseur ("" si vide).
+// Selected returns the path under the cursor ("" if empty).
 func (m *Model) Selected() string {
 	if m.cursor < len(m.rows) {
 		return m.rows[m.cursor].path
@@ -183,7 +183,7 @@ func (m *Model) Selected() string {
 	return ""
 }
 
-// Visible renvoie les chemins affichés, dans l'ordre (utile aux tests).
+// Visible returns the displayed paths, in order (useful for tests).
 func (m *Model) Visible() []string {
 	out := make([]string, len(m.rows))
 	for i, r := range m.rows {
@@ -203,9 +203,9 @@ func (m *Model) toggle(n *node, expand bool) {
 	m.rebuild()
 }
 
-// Reload relit le disque en conservant l'état de l'arbre.
+// Reload re-reads the disk, keeping the state of the tree.
 func (m *Model) Reload() {
-	if m.searching { // recharge l'arbre réel, pas l'arbre éphémère
+	if m.searching { // reloads the real tree, not the ephemeral one
 		m.swapView()
 		defer m.swapView()
 	}
@@ -223,7 +223,7 @@ func (m *Model) Reload() {
 	m.rebuild()
 }
 
-// Update traite une touche. Renvoie une commande d'ouverture de fichier le cas échéant.
+// Update handles a key press. It returns a command to open a file where applicable.
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if r, ok := msg.(SearchResultMsg); ok {
 		m.handleSearchMsg(r)
@@ -299,7 +299,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func openCmd(p string) tea.Cmd { return func() tea.Msg { return OpenFileMsg{p} } }
 
-// View rend l'explorateur sur width×height cellules.
+// View renders the explorer on width×height cells.
 func (m *Model) View(th theme.Theme, focused bool) string {
 	w := m.width
 	if w < 1 || m.height < 1 {

@@ -1,4 +1,4 @@
-// Package app contient le modèle racine : disposition, focus, onglets, presse-papiers.
+// Package app holds the root model: layout, focus, tabs, clipboard.
 package app
 
 import (
@@ -33,17 +33,17 @@ const (
 	promptQuit
 )
 
-// Options configure le démarrage.
+// Options configures the start-up.
 type Options struct {
-	Dir   string   // racine de l'explorateur
-	Files []string // fichiers à ouvrir au démarrage
+	Dir   string   // explorer root
+	Files []string // files to open at start-up
 	Mode  theme.Mode
-	// Transparent laisse le fond du terminal au lieu d'appliquer celui du thème.
+	// Transparent keeps the terminal background instead of applying the theme's.
 	Transparent bool
-	Clip        clip.Clipboard // presse-papiers (système par défaut)
+	Clip        clip.Clipboard // clipboard (system one by default)
 }
 
-// Model est le modèle racine Bubble Tea.
+// Model is the root Bubble Tea model.
 type Model struct {
 	explorer *explorer.Model
 	tabs     []*editor.Editor
@@ -56,10 +56,10 @@ type Model struct {
 	bgDark      bool
 	th          theme.Theme
 	clip        clip.Clipboard
-	register    string // repli quand le presse-papiers système est indisponible
+	register    string // fallback when the system clipboard is unavailable
 
-	width, height int // zone utile, hors marges
-	winW, winH    int // taille de la fenêtre
+	width, height int // usable area, margins excluded
+	winW, winH    int // window size
 	status        string
 	statusErr     bool
 	prompt        promptKind
@@ -68,7 +68,7 @@ type Model struct {
 	nextID        int
 }
 
-// New construit le modèle.
+// New builds the model.
 func New(o Options) *Model {
 	if o.Dir == "" {
 		o.Dir = "."
@@ -81,7 +81,7 @@ func New(o Options) *Model {
 		showTree:    true,
 		mode:        o.Mode,
 		transparent: o.Transparent,
-		bgDark:      true, // repli si le terminal ne répond pas à la requête de fond
+		bgDark:      true, // fallback if the terminal does not answer the background query
 		clip:        o.Clip,
 		focus:       focusExplorer,
 	}
@@ -92,10 +92,10 @@ func New(o Options) *Model {
 	return m
 }
 
-// Init demande la couleur de fond du terminal pour choisir le thème.
+// Init asks for the terminal background colour to pick the theme.
 func (m *Model) Init() tea.Cmd { return tea.RequestBackgroundColor }
 
-// --- accesseurs (tests) ----------------------------------------------------
+// --- accessors (tests) ----------------------------------------------------
 
 func (m *Model) ActiveEditor() *editor.Editor {
 	if m.active >= 0 && m.active < len(m.tabs) {
@@ -107,7 +107,7 @@ func (m *Model) Tabs() []*editor.Editor { return m.tabs }
 func (m *Model) Status() string         { return m.status }
 func (m *Model) Theme() theme.Theme     { return m.th }
 
-// --- mise en page ----------------------------------------------------------
+// --- layout ---------------------------------------------------------------
 
 func (m *Model) explorerWidth() int {
 	if !m.showTree || m.width < 50 {
@@ -141,7 +141,7 @@ func (m *Model) layout() {
 	}
 }
 
-// --- ouverture / fermeture -------------------------------------------------
+// --- open / close ---------------------------------------------------------
 
 func (m *Model) setStatus(s string, isErr bool) { m.status, m.statusErr = s, isErr }
 
@@ -211,12 +211,12 @@ func (m *Model) save(t *editor.Editor) bool {
 	return true
 }
 
-// --- presse-papiers --------------------------------------------------------
+// --- clipboard ------------------------------------------------------------
 
 func (m *Model) copyText(text string) tea.Cmd {
 	m.register = text
 	if err := m.clip.Write(text); err != nil {
-		// repli OSC52 : fonctionne à travers SSH dans la plupart des terminaux modernes
+		// OSC52 fallback: works over SSH in most modern terminals
 		return tea.SetClipboard(text)
 	}
 	return nil
@@ -618,7 +618,7 @@ func (m *Model) emptyArea(w, h int) []string {
 	return lines
 }
 
-// View assemble l'écran.
+// View assembles the screen.
 func (m *Model) View() tea.View {
 	if m.width < 10 || m.height < 4 {
 		return tea.NewView("")
@@ -689,9 +689,9 @@ func (m *Model) View() tea.View {
 	return v
 }
 
-// paintBackground applique le fond et le texte du thème à toutes les cellules
-// sans style propre : l'OSC 11 (v.BackgroundColor) n'est pas géré par tous les
-// terminaux, alors on réémet le fond après chaque réinitialisation SGR.
+// paintBackground applies the theme background and text colour to every cell
+// without a style of its own: OSC 11 (v.BackgroundColor) is not handled by all
+// terminals, so the background is re-emitted after every SGR reset.
 func paintBackground(s string, th theme.Theme) string {
 	probe := lipgloss.NewStyle().Background(th.Bg).Foreground(th.Fg).Render("\x00")
 	prefix, _, ok := strings.Cut(probe, "\x00")
@@ -707,8 +707,8 @@ func paintBackground(s string, th theme.Theme) string {
 	return strings.Join(lines, "\n")
 }
 
-// Marges autour de l'interface (colonnes à gauche/droite, lignes en haut/bas),
-// supprimées sur les petits terminaux pour garder de la place utile.
+// Margins around the interface (columns on the left/right, lines at the top/bottom),
+// removed on small terminals to keep usable space.
 const (
 	marginX = 2
 	marginY = 1
@@ -721,7 +721,7 @@ func margins(w, h int) (mx, my int) {
 	return 0, 0
 }
 
-// addMargins entoure s (de largeur w) de mx colonnes et my lignes vides.
+// addMargins surrounds s (of width w) with mx empty columns and my empty lines.
 func addMargins(s string, mx, my, w int) string {
 	if mx == 0 && my == 0 {
 		return s
