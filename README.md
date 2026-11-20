@@ -7,11 +7,12 @@ onglets, sélection, presse-papiers, recherche/remplacement et coloration syntax
 
 ```sh
 make build            # produit bin/etui (Go ≥ 1.26 requis par Bubble Tea v2 ; GO=... pour changer de SDK)
-bin/etui [--theme=auto|light|dark] [dossier | fichier...]
+bin/etui [--theme=auto|light|dark] [--transparent] [dossier | fichier...]
 make test
 ```
 
 Le thème clair/sombre est détecté depuis le fond du terminal (repli : sombre). `Ctrl+T` fait défiler auto → clair → sombre.
+Le fond du thème est appliqué au terminal ; `--transparent` conserve le fond du terminal.
 
 ## Raccourcis (F1 dans l'application)
 

@@ -15,8 +15,9 @@ import (
 
 func main() {
 	themeFlag := flag.String("theme", "auto", "thème : auto, light ou dark")
+	transparent := flag.Bool("transparent", false, "garde le fond du terminal au lieu du fond du thème")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage : etui [--theme=auto|light|dark] [dossier | fichier...]\n")
+		fmt.Fprintf(os.Stderr, "Usage : etui [--theme=auto|light|dark] [--transparent] [dossier | fichier...]\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -27,7 +28,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	opts := app.Options{Dir: ".", Mode: mode}
+	opts := app.Options{Dir: ".", Mode: mode, Transparent: *transparent}
 	for i, a := range flag.Args() {
 		st, err := os.Stat(a)
 		switch {

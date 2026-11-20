@@ -317,3 +317,16 @@ func TestExplorerSearchEscAndAsyncRouting(t *testing.T) {
 		t.Fatal("le premier Échap ferme la recherche et garde le focus")
 	}
 }
+
+func TestViewPaintsThemeBackground(t *testing.T) {
+	m, _ := newApp(t, "a.go")
+	m.Update(tea.WindowSizeMsg{Width: 60, Height: 12})
+	const paint = "\x1b[38;2;228;224;245;48;2;20;18;31m"
+	if !strings.Contains(m.View().Content, paint) {
+		t.Fatal("le fond du thème doit être appliqué")
+	}
+	m.transparent = true
+	if strings.Contains(m.View().Content, paint) {
+		t.Fatal("--transparent ne doit pas peindre le fond")
+	}
+}

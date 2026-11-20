@@ -37,7 +37,9 @@ type Options struct {
 	Dir   string   // racine de l'explorateur
 	Files []string // fichiers à ouvrir au démarrage
 	Mode  theme.Mode
-	Clip  clip.Clipboard // presse-papiers (système par défaut)
+	// Transparent laisse le fond du terminal au lieu d'appliquer celui du thème.
+	Transparent bool
+	Clip        clip.Clipboard // presse-papiers (système par défaut)
 }
 
 // Model est le modèle racine Bubble Tea.
@@ -48,11 +50,12 @@ type Model struct {
 	focus    focus
 	showTree bool
 
-	mode     theme.Mode
-	bgDark   bool
-	th       theme.Theme
-	clip     clip.Clipboard
-	register string // repli quand le presse-papiers système est indisponible
+	mode        theme.Mode
+	transparent bool
+	bgDark      bool
+	th          theme.Theme
+	clip        clip.Clipboard
+	register    string // repli quand le presse-papiers système est indisponible
 
 	width, height int
 	status        string
@@ -72,12 +75,13 @@ func New(o Options) *Model {
 		o.Clip = clip.System{}
 	}
 	m := &Model{
-		explorer: explorer.New(o.Dir),
-		showTree: true,
-		mode:     o.Mode,
-		bgDark:   true, // repli si le terminal ne répond pas à la requête de fond
-		clip:     o.Clip,
-		focus:    focusExplorer,
+		explorer:    explorer.New(o.Dir),
+		showTree:    true,
+		mode:        o.Mode,
+		transparent: o.Transparent,
+		bgDark:      true, // repli si le terminal ne répond pas à la requête de fond
+		clip:        o.Clip,
+		focus:       focusExplorer,
 	}
 	m.th = theme.Resolve(m.mode, m.bgDark)
 	for _, f := range o.Files {
@@ -488,7 +492,7 @@ func (m *Model) statusBar() string {
 		case promptQuit:
 			q = fmt.Sprintf(" %d fichier(s) modifié(s). (o) enregistrer et quitter / (n) quitter sans enregistrer / Échap pour annuler", len(m.modifiedTabs()))
 		}
-		return base.Foreground(th.Error).Bold(true).Render(fit(q, m.width))
+		return base.Background(th.Error).Foreground(th.Bg).Bold(true).Render(fit(q, m.width))
 	}
 
 	var right string
@@ -532,9 +536,7 @@ func (m *Model) statusBar() string {
 	if msg != "" {
 		st := base.Bold(true)
 		if m.statusErr {
-			st = st.Foreground(th.Error)
-		} else {
-			st = st.Foreground(th.Accent)
+			st = st.Background(th.Error).Foreground(th.Bg)
 		}
 		ms = st.Render(msg)
 	}
@@ -638,7 +640,11 @@ func (m *Model) View() tea.View {
 	}
 	rows = append(rows, m.statusBar())
 
-	v := tea.NewView(strings.Join(rows, "\n"))
+	content := strings.Join(rows, "\n")
+	if !m.transparent {
+		content = paintBackground(content, th)
+	}
+	v := tea.NewView(content)
 	v.AltScreen = true
 	v.WindowTitle = "etui"
 	if ed := m.ActiveEditor(); ed != nil {
@@ -651,9 +657,27 @@ func (m *Model) View() tea.View {
 		}
 		v.Cursor = tea.NewCursor(x, cur.Y+1)
 	}
-	if m.mode != theme.Auto {
+	if !m.transparent {
 		v.BackgroundColor = th.Bg
 		v.ForegroundColor = th.Fg
 	}
 	return v
+}
+
+// paintBackground applique le fond et le texte du thème à toutes les cellules
+// sans style propre : l'OSC 11 (v.BackgroundColor) n'est pas géré par tous les
+// terminaux, alors on réémet le fond après chaque réinitialisation SGR.
+func paintBackground(s string, th theme.Theme) string {
+	probe := lipgloss.NewStyle().Background(th.Bg).Foreground(th.Fg).Render("\x00")
+	prefix, _, ok := strings.Cut(probe, "\x00")
+	if !ok || prefix == "" {
+		return s
+	}
+	s = strings.ReplaceAll(s, "\x1b[m", "\x1b[m"+prefix)
+	s = strings.ReplaceAll(s, "\x1b[0m", "\x1b[0m"+prefix)
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = prefix + l + "\x1b[m"
+	}
+	return strings.Join(lines, "\n")
 }
