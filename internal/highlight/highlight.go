@@ -1,4 +1,4 @@
-// Package highlight tokenise un texte avec Chroma et renvoie un type de jeton par rune.
+// Package highlight tokenises text with Chroma and returns one token type per rune.
 package highlight
 
 import (
@@ -9,20 +9,20 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 )
 
-// MaxBytes : au-delà, la coloration est désactivée pour garder l'éditeur fluide.
+// MaxBytes: above this size highlighting is disabled to keep the editor responsive.
 const MaxBytes = 512 * 1024
 
-// Highlighter colore un document avec un lexer choisi une fois pour toutes.
+// Highlighter colours a document with a lexer chosen once and for all.
 type Highlighter struct {
 	lexer chroma.Lexer
 }
 
-// plainNames liste des fichiers que Chroma associe à tort à un autre langage
-// (go.mod est pris pour de l'AMPL) : ils restent en texte brut.
+// plainNames lists files that Chroma wrongly associates with another language
+// (go.mod is taken for AMPL): they stay plain text.
 var plainNames = map[string]bool{"go.mod": true, "go.sum": true, "go.work": true, "go.work.sum": true}
 
-// New choisit le lexer d'après le nom de fichier, puis d'après le contenu.
-// Sans lexer reconnu, la coloration est neutre (texte brut).
+// New picks the lexer from the file name, then from the content.
+// Without a recognised lexer, highlighting is neutral (plain text).
 func New(path, content string) *Highlighter {
 	var lx chroma.Lexer
 	if plainNames[filepath.Base(path)] {
@@ -40,7 +40,7 @@ func New(path, content string) *Highlighter {
 	return &Highlighter{lexer: chroma.Coalesce(lx)}
 }
 
-// Language renvoie le nom du langage détecté.
+// Language returns the name of the detected language.
 func (h *Highlighter) Language() string {
 	if h == nil || h.lexer == nil {
 		return "texte"
@@ -48,8 +48,8 @@ func (h *Highlighter) Language() string {
 	return h.lexer.Config().Name
 }
 
-// Tokens renvoie, pour chaque ligne, le type de jeton de chaque rune.
-// Renvoie nil si la coloration est indisponible ou trop coûteuse.
+// Tokens returns, for each line, the token type of each rune.
+// It returns nil if highlighting is unavailable or too expensive.
 func (h *Highlighter) Tokens(lines [][]rune) [][]chroma.TokenType {
 	if h == nil || h.lexer == nil {
 		return nil

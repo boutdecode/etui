@@ -1,5 +1,5 @@
-// Package theme définit les thèmes clair et sombre de l'interface et le
-// choix du style Chroma associé.
+// Package theme defines the light and dark themes of the interface and the
+// choice of the matching Chroma style.
 package theme
 
 import (
@@ -10,9 +10,11 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/styles"
+
+	"boutdecode/etui/internal/i18n"
 )
 
-// Mode est le réglage demandé par l'utilisateur.
+// Mode is the setting requested by the user.
 type Mode int
 
 const (
@@ -21,20 +23,32 @@ const (
 	Dark
 )
 
+// String returns the language-independent name of the mode.
 func (m Mode) String() string {
 	switch m {
 	case Light:
-		return "clair"
+		return "light"
 	case Dark:
-		return "sombre"
+		return "dark"
 	}
 	return "auto"
 }
 
-// Next fait défiler auto → clair → sombre → auto.
+// Label returns the mode name in the active interface language.
+func (m Mode) Label() string {
+	switch m {
+	case Light:
+		return i18n.T(i18n.ThemeLight)
+	case Dark:
+		return i18n.T(i18n.ThemeDark)
+	}
+	return i18n.T(i18n.ThemeAuto)
+}
+
+// Next cycles auto → light → dark → auto.
 func (m Mode) Next() Mode { return (m + 1) % 3 }
 
-// ParseMode lit la valeur du flag --theme.
+// ParseMode reads the value of the --theme flag.
 func ParseMode(s string) (Mode, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "", "auto":
@@ -44,16 +58,16 @@ func ParseMode(s string) (Mode, error) {
 	case "dark", "sombre":
 		return Dark, nil
 	}
-	return Auto, fmt.Errorf("thème inconnu %q (auto, light ou dark)", s)
+	return Auto, fmt.Errorf(i18n.T(i18n.ErrUnknownTheme), s)
 }
 
-// Noms des styles Chroma utilisés.
+// Names of the Chroma styles in use.
 const (
 	ChromaDark  = "dracula"
 	ChromaLight = "github"
 )
 
-// Theme regroupe toutes les couleurs de l'interface.
+// Theme groups all the colours of the interface.
 type Theme struct {
 	Dark   bool
 	Chroma *chroma.Style
@@ -77,10 +91,10 @@ type Theme struct {
 	Error           color.Color
 	ExplorerDirFg   color.Color
 	ExplorerSelBg   color.Color
-	ExplorerSelBgNF color.Color // sélection quand l'explorateur n'a pas le focus
+	ExplorerSelBgNF color.Color // selection when the explorer does not have focus
 }
 
-// Resolve choisit le thème selon le mode demandé et le fond détecté.
+// Resolve picks the theme from the requested mode and the detected background.
 func Resolve(mode Mode, detectedDark bool) Theme {
 	switch mode {
 	case Light:
@@ -122,8 +136,8 @@ func light() Theme {
 	}
 }
 
-// TokenStyle convertit un type de jeton Chroma en style lipgloss (premier plan,
-// gras, italique, souligné ; jamais de fond, qui est géré par les superpositions).
+// TokenStyle converts a Chroma token type to a lipgloss style (foreground,
+// bold, italic, underline; never a background, which is handled by the overlays).
 func (t Theme) TokenStyle(tt chroma.TokenType) lipgloss.Style {
 	st := lipgloss.NewStyle()
 	if t.Chroma == nil {

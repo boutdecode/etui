@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	walkLimit   = 50000 // plafond d'entrées conservées par le parcours
-	resultLimit = 2000  // plafond de correspondances affichées
+	walkLimit   = 50000 // cap on entries kept by the walk
+	resultLimit = 2000  // cap on displayed matches
 )
 
-// SearchResultMsg porte le résultat d'un parcours asynchrone.
-// Il est ignoré si Gen n'est plus la génération courante.
+// SearchResultMsg carries the result of an asynchronous walk.
+// It is ignored if Gen is no longer the current generation.
 type SearchResultMsg struct {
 	Gen       int
 	Entries   []entry
@@ -29,11 +29,11 @@ type entry struct {
 	dir  bool
 }
 
-// skipDir : dossiers jamais parcourus par la recherche.
+// skipDir: directories the search never walks into.
 func skipDir(name string) bool { return name == ".git" || name == "node_modules" }
 
-// walk parcourt root récursivement. Il ne lit aucun état partagé et s'arrête
-// quand ctx est annulé. Les erreurs de lecture sont ignorées silencieusement.
+// walk walks root recursively. It reads no shared state and stops
+// when ctx is cancelled. Read errors are silently ignored.
 func walk(ctx context.Context, root string, showHidden bool, limit int) ([]entry, bool) {
 	var out []entry
 	truncated := false
@@ -60,7 +60,7 @@ func walk(ctx context.Context, root string, showHidden bool, limit int) ([]entry
 			}
 			p := filepath.Join(dir, name)
 			isDir := de.IsDir()
-			if de.Type()&os.ModeSymlink != 0 { // dossier lié : affiché comme dossier, jamais suivi
+			if de.Type()&os.ModeSymlink != 0 { // symlinked directory: shown as a directory, never followed
 				if st, err := os.Stat(p); err == nil && st.IsDir() {
 					out = append(out, entry{p, true})
 					continue
@@ -77,8 +77,8 @@ func walk(ctx context.Context, root string, showHidden bool, limit int) ([]entry
 	return out, truncated
 }
 
-// matchRange renvoie la plage d'octets de la première occurrence de q dans
-// name, insensible à la casse ; ok=false si absente. q vide ne correspond à rien.
+// matchRange returns the byte range of the first occurrence of q in
+// name, case-insensitively; ok=false if absent. An empty q matches nothing.
 func matchRange(name, q string) (start, end int, ok bool) {
 	n := utf8.RuneCountInString(q)
 	if n == 0 {
@@ -101,7 +101,7 @@ func matchRange(name, q string) (start, end int, ok bool) {
 	return 0, 0, false
 }
 
-// filter garde les entrées dont le nom (pas le chemin) contient query.
+// filter keeps the entries whose name (not path) contains query.
 func filter(entries []entry, query string) []entry {
 	var out []entry
 	for _, e := range entries {
@@ -112,8 +112,8 @@ func filter(entries []entry, query string) []entry {
 	return out
 }
 
-// buildTree construit l'arbre éphémère (correspondances + ancêtres, tout déplié)
-// et renvoie ses lignes aplaties, dossiers d'abord.
+// buildTree builds the ephemeral tree (matches + ancestors, fully expanded)
+// and returns its flattened rows, directories first.
 func buildTree(root string, matches []entry) []*node {
 	top := &node{path: root, dir: true, expanded: true}
 	nodes := map[string]*node{root: top}
@@ -154,12 +154,12 @@ func buildTree(root string, matches []entry) []*node {
 	return rows
 }
 
-// --- état de recherche du Model ---------------------------------------------
+// --- search state of the Model -----------------------------------------------
 
-// Searching indique si la saisie de recherche est active.
+// Searching reports whether search input is active.
 func (m *Model) Searching() bool { return m.searching }
 
-// Query renvoie la requête courante.
+// Query returns the current query.
 func (m *Model) Query() string { return m.query }
 
 func (m *Model) swapView() {
@@ -177,7 +177,7 @@ func (m *Model) startSearch() tea.Cmd {
 	return m.scan()
 }
 
-// scan lance un parcours annulable (l'éventuel précédent est annulé).
+// scan starts a cancellable walk (any previous one is cancelled).
 func (m *Model) scan() tea.Cmd {
 	if m.cancel != nil {
 		m.cancel()
@@ -193,7 +193,7 @@ func (m *Model) scan() tea.Cmd {
 	}
 }
 
-// CancelSearch annule tout parcours en cours sans changer l'affichage.
+// CancelSearch cancels any walk in progress without changing the display.
 func (m *Model) CancelSearch() {
 	if m.cancel != nil {
 		m.cancel()
@@ -201,8 +201,8 @@ func (m *Model) CancelSearch() {
 	}
 }
 
-// endSearch ferme la recherche et restaure l'arbre réel. Si reveal, le
-// chemin sélectionné y est révélé.
+// endSearch closes the search and restores the real tree. If reveal is set, the
+// selected path is revealed in it.
 func (m *Model) endSearch(reveal bool) {
 	if !m.searching {
 		return
@@ -221,7 +221,7 @@ func (m *Model) endSearch(reveal bool) {
 	}
 }
 
-// reveal charge et déplie les ancêtres de path dans l'arbre réel puis place le curseur dessus.
+// reveal loads and expands the ancestors of path in the real tree, then puts the cursor on it.
 func (m *Model) reveal(path string) {
 	rel, err := filepath.Rel(m.root.path, path)
 	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
@@ -256,7 +256,7 @@ func (m *Model) reveal(path string) {
 	m.fixScroll()
 }
 
-// refilter recalcule l'arbre éphémère ; keep conserve la sélection si possible.
+// refilter recomputes the ephemeral tree; keep preserves the selection if possible.
 func (m *Model) refilter(keep bool) {
 	sel := ""
 	if keep {
@@ -345,5 +345,5 @@ func (m *Model) updateSearch(k tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-// EndSearch ferme la recherche sans révéler de chemin.
+// EndSearch closes the search without revealing a path.
 func (m *Model) EndSearch() { m.endSearch(false) }

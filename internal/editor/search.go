@@ -1,24 +1,25 @@
 package editor
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
+
+	"boutdecode/etui/internal/i18n"
 )
 
-// Range désigne une occurrence sur une seule ligne : [Start, End) en runes.
+// Range designates a match on a single line: [Start, End) in runes.
 type Range struct{ Line, Start, End int }
 
 type searchState struct {
-	mode     int // 0 fermé, 1 recherche, 2 recherche + remplacement
+	mode     int // 0 closed, 1 search, 2 search + replace
 	query    []rune
 	repl     []rune
-	field    int // 0 = recherche, 1 = remplacement
+	field    int // 0 = search, 1 = replacement
 	caseSens bool
 	matches  []Range
-	idx      int // occurrence courante, -1 si aucune
+	idx      int // current match, -1 if none
 	dirty    bool
 	notice   string
 }
@@ -53,7 +54,7 @@ func fold(r rune, caseSens bool) rune {
 	return unicode.ToLower(r)
 }
 
-// findAll liste toutes les occurrences de query, chevauchements compris.
+// findAll lists all matches of query, overlaps included.
 func findAll(lines [][]rune, query []rune, caseSens bool) []Range {
 	if len(query) == 0 {
 		return nil
@@ -80,7 +81,7 @@ func findAll(lines [][]rune, query []rune, caseSens bool) []Range {
 	return out
 }
 
-// Matches renvoie les occurrences courantes (vide si la recherche est fermée).
+// Matches returns the current matches (empty if the search is closed).
 func (e *Editor) Matches() []Range {
 	if !e.search.active() {
 		return nil
@@ -88,15 +89,15 @@ func (e *Editor) Matches() []Range {
 	return e.search.matches
 }
 
-// SearchInfo : numéro de l'occurrence courante (1-based, 0 si aucune) et total.
+// SearchInfo: number of the current match (1-based, 0 if none) and total.
 func (e *Editor) SearchInfo() (cur, total int) {
 	return e.search.idx + 1, len(e.search.matches)
 }
 
-// SearchActive indique si la barre de recherche est ouverte.
+// SearchActive reports whether the search bar is open.
 func (e *Editor) SearchActive() bool { return e.search.active() }
 
-// TakeNotice renvoie et efface le dernier message informatif de l'éditeur.
+// TakeNotice returns and clears the editor's last informational message.
 func (e *Editor) TakeNotice() string {
 	n := e.search.notice
 	e.search.notice = ""
@@ -114,7 +115,7 @@ func (e *Editor) searchRecompute() {
 	}
 }
 
-// refreshSearch recalcule les occurrences si le texte a changé.
+// refreshSearch recomputes the matches if the text has changed.
 func (e *Editor) refreshSearch() {
 	if e.search.active() && e.search.dirty {
 		e.searchRecompute()
@@ -146,7 +147,7 @@ func (e *Editor) closeSearch() {
 	e.scrollToCursor()
 }
 
-// searchFrom : position à partir de laquelle chercher l'occurrence suivante.
+// searchFrom: position from which to look for the next match.
 func (e *Editor) searchFrom() Pos {
 	if a, _, ok := e.Selection(); ok {
 		return a
@@ -154,7 +155,7 @@ func (e *Editor) searchFrom() Pos {
 	return e.cur
 }
 
-// searchJumpFrom saute à la première occurrence commençant en p ou après (circulaire).
+// searchJumpFrom jumps to the first match starting at or after p (wrapping around).
 func (e *Editor) searchJumpFrom(p Pos) {
 	s := &e.search
 	if len(s.matches) == 0 {
@@ -180,20 +181,20 @@ func (e *Editor) searchJump(i int) {
 	e.scrollToCursor()
 }
 
-// searchStep passe à l'occurrence suivante (dir=1) ou précédente (dir=-1), circulaire.
+// searchStep moves to the next (dir=1) or previous (dir=-1) match, wrapping around.
 func (e *Editor) searchStep(dir int) {
 	e.refreshSearch()
 	s := &e.search
 	n := len(s.matches)
 	if n == 0 {
-		s.notice = "Aucune occurrence"
+		s.notice = i18n.T(i18n.SearchNoMatch)
 		return
 	}
 	if s.idx < 0 {
 		if dir > 0 {
 			e.searchJumpFrom(e.searchFrom())
 		} else {
-			// dernière occurrence avant le curseur
+			// last match before the cursor
 			p := e.searchFrom()
 			j := n - 1
 			for i := n - 1; i >= 0; i-- {
@@ -209,7 +210,7 @@ func (e *Editor) searchStep(dir int) {
 	e.searchJump(((s.idx+dir)%n + n) % n)
 }
 
-// replaceCurrent remplace l'occurrence courante puis passe à la suivante.
+// replaceCurrent replaces the current match then moves to the next one.
 func (e *Editor) replaceCurrent() {
 	e.refreshSearch()
 	s := &e.search
@@ -232,18 +233,18 @@ func (e *Editor) replaceAll() {
 	s := &e.search
 	n := len(s.matches)
 	if n == 0 {
-		s.notice = "Aucune occurrence"
+		s.notice = i18n.T(i18n.SearchNoMatch)
 		return
 	}
 	before := e.cur
-	for i := n - 1; i >= 0; i-- { // de la fin vers le début : les positions restent valides
+	for i := n - 1; i >= 0; i-- { // from the end to the start: positions stay valid
 		m := s.matches[i]
 		e.buf.replace(Pos{m.Line, m.Start}, Pos{m.Line, m.End}, string(s.repl), kindOther, before)
 	}
 	e.cur = e.buf.clamp(before)
 	e.afterEdit()
 	e.searchRecompute()
-	s.notice = fmt.Sprintf("%d remplacement(s)", n)
+	s.notice = i18n.T(i18n.SearchReplaced, n)
 }
 
 func (e *Editor) searchKey(m tea.KeyPressMsg) {
@@ -304,7 +305,7 @@ func (e *Editor) searchKey(m tea.KeyPressMsg) {
 	}
 }
 
-// searchQueryChanged met à jour les occurrences et saute à la plus proche (recherche incrémentale).
+// searchQueryChanged updates the matches and jumps to the nearest one (incremental search).
 func (e *Editor) searchQueryChanged() {
 	e.searchRecompute()
 	e.search.idx = -1

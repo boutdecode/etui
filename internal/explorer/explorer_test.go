@@ -57,25 +57,25 @@ func TestOrderingAndHidden(t *testing.T) {
 	}
 	press(m, ".")
 	if got := names(m); !strings.Contains(got, ".hidden") {
-		t.Fatalf("fichiers cachés absents : %s", got)
+		t.Fatalf("hidden files missing: %s", got)
 	}
 }
 
 func TestLazyExpandCollapseAndOpen(t *testing.T) {
 	d, m := setup(t)
 	if m.root.children[1].loaded {
-		t.Fatal("zdir ne doit pas être chargé avant ouverture")
+		t.Fatal("zdir must not be loaded before it is opened")
 	}
 	press(m, "down") // zdir
 	press(m, "enter")
 	if got := names(m); got != "adir,zdir,zdir/sub,zdir/inner.txt,A.go,b.txt" {
-		t.Fatalf("après expansion : %s", got)
+		t.Fatalf("after expansion: %s", got)
 	}
 	press(m, "left")
 	if got := names(m); got != "adir,zdir,A.go,b.txt" {
-		t.Fatalf("après repli : %s", got)
+		t.Fatalf("after collapse: %s", got)
 	}
-	press(m, "right") // rouvre
+	press(m, "right") // reopens
 	press(m, "down")
 	press(m, "down") // inner.txt
 	cmd := press(m, "enter")
@@ -85,10 +85,10 @@ func TestLazyExpandCollapseAndOpen(t *testing.T) {
 	if msg, ok := cmd().(OpenFileMsg); !ok || msg.Path != filepath.Join(d, "zdir", "inner.txt") {
 		t.Fatalf("message = %#v", cmd())
 	}
-	// left sur un fichier remonte au dossier parent
+	// left on a file goes up to the parent directory
 	press(m, "left")
 	if m.Selected() != filepath.Join(d, "zdir") {
-		t.Fatalf("sélection = %s", m.Selected())
+		t.Fatalf("selection = %s", m.Selected())
 	}
 }
 

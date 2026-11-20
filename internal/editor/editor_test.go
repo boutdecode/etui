@@ -67,7 +67,7 @@ func TestInsertDeleteAndMultiline(t *testing.T) {
 	}
 	key(e, "backspace")
 	key(e, "home")
-	key(e, "backspace") // fusionne les lignes
+	key(e, "backspace") // merges the lines
 	if e.Text() != "héllowörl" {
 		t.Fatalf("texte = %q", e.Text())
 	}
@@ -94,37 +94,37 @@ func TestSelectionForwardBackward(t *testing.T) {
 	if got := e.SelectedText(); got != "abc" {
 		t.Fatalf("avant : %q", got)
 	}
-	key(e, "right") // replie à droite de la sélection
+	key(e, "right") // collapses to the right of the selection
 	if _, _, ok := e.Selection(); ok || e.Cursor() != (Pos{0, 3}) {
-		t.Fatalf("la sélection devrait être repliée en %v", e.Cursor())
+		t.Fatalf("the selection should have collapsed to %v", e.Cursor())
 	}
 	for i := 0; i < 2; i++ {
 		key(e, "shift+left")
 	}
 	if got := e.SelectedText(); got != "bc" {
-		t.Fatalf("arrière : %q", got)
+		t.Fatalf("backward: %q", got)
 	}
 }
 
 func TestSelectionMultilineReplaceAndDelete(t *testing.T) {
 	e := newEd("abcdef\nghijkl\nmnop")
-	e.SetSelection(Pos{0, 4}, Pos{2, 2}) // avant → arrière géré aussi
+	e.SetSelection(Pos{0, 4}, Pos{2, 2}) // forward → backward handled too
 	if got := e.SelectedText(); got != "ef\nghijkl\nmn" {
-		t.Fatalf("sélection = %q", got)
+		t.Fatalf("selection = %q", got)
 	}
-	typ(e, "X") // remplace la sélection à la frappe
+	typ(e, "X") // typing replaces the selection
 	if e.Text() != "abcdXop" {
-		t.Fatalf("après remplacement : %q", e.Text())
+		t.Fatalf("after replacement: %q", e.Text())
 	}
-	e.SetSelection(Pos{0, 5}, Pos{0, 1}) // sélection à l'envers
+	e.SetSelection(Pos{0, 5}, Pos{0, 1}) // backward selection
 	key(e, "backspace")
 	if e.Text() != "aop" {
-		t.Fatalf("après suppression : %q", e.Text())
+		t.Fatalf("after deletion: %q", e.Text())
 	}
 	e.SelectAll()
 	key(e, "delete")
 	if e.Text() != "" {
-		t.Fatalf("après tout supprimer : %q", e.Text())
+		t.Fatalf("after deleting everything: %q", e.Text())
 	}
 }
 
@@ -175,7 +175,7 @@ func TestPasteMultiline(t *testing.T) {
 func TestUndoRedoGrouping(t *testing.T) {
 	e := newEd("")
 	typ(e, "abc")
-	key(e, "left") // coupe le groupe
+	key(e, "left") // breaks the group
 	typ(e, "X")
 	if e.Text() != "abXc" {
 		t.Fatal(e.Text())
@@ -186,7 +186,7 @@ func TestUndoRedoGrouping(t *testing.T) {
 	}
 	e.Undo()
 	if e.Text() != "" {
-		t.Fatalf("undo 2 (regroupé) = %q", e.Text())
+		t.Fatalf("undo 2 (grouped) = %q", e.Text())
 	}
 	e.Redo()
 	e.Redo()
@@ -201,11 +201,11 @@ func TestUndoSelectionReplace(t *testing.T) {
 	typ(e, "bye")
 	e.Undo()
 	if e.Text() != "hello world" {
-		t.Fatalf("après undo : %q", e.Text())
+		t.Fatalf("after undo: %q", e.Text())
 	}
 	e.Redo()
 	if e.Text() != "bye world" {
-		t.Fatalf("après redo : %q", e.Text())
+		t.Fatalf("after redo: %q", e.Text())
 	}
 }
 
@@ -234,31 +234,31 @@ func TestModifiedTracking(t *testing.T) {
 	}
 	e.SetSize(40, 10)
 	if e.Modified() || e.Text() != "one\ntwo\n" {
-		t.Fatalf("état initial incorrect : %q", e.Text())
+		t.Fatalf("wrong initial state: %q", e.Text())
 	}
 	typ(e, "x")
 	if !e.Modified() {
-		t.Fatal("devrait être modifié")
+		t.Fatal("should be modified")
 	}
 	e.Undo()
 	if e.Modified() {
-		t.Fatal("après undo, ne devrait plus être modifié")
+		t.Fatal("after undo, should no longer be modified")
 	}
 	typ(e, "y")
 	if err := e.Save(); err != nil || e.Modified() {
 		t.Fatalf("save: %v modified=%v", err, e.Modified())
 	}
-	typ(e, "z") // ne doit pas fusionner avec la frappe enregistrée
+	typ(e, "z") // must not merge with the keystroke that was saved
 	if !e.Modified() {
-		t.Fatal("modifié après save + frappe")
+		t.Fatal("modified after save + typing")
 	}
 	e.Undo()
 	if e.Modified() {
-		t.Fatal("undo ramène à l'état enregistré")
+		t.Fatal("undo must go back to the saved state")
 	}
 	data, _ := os.ReadFile(p)
 	if string(data) != "yone\r\ntwo\r\n" {
-		t.Fatalf("CRLF non préservé : %q", data)
+		t.Fatalf("CRLF not preserved: %q", data)
 	}
 }
 
@@ -287,7 +287,7 @@ func TestFindAll(t *testing.T) {
 		t.Errorf("casse insensible unicode : %v", got)
 	}
 	if findAll(lines, nil, true) != nil {
-		t.Error("requête vide")
+		t.Error("empty query")
 	}
 }
 
@@ -301,20 +301,20 @@ func TestSearchNavigationCircular(t *testing.T) {
 	for i, want := range []int{2, 3, 1} {
 		key(e, "enter")
 		if cur, _ := e.SearchInfo(); cur != want {
-			t.Fatalf("étape %d : %d, attendu %d", i, cur, want)
+			t.Fatalf("step %d: %d, want %d", i, cur, want)
 		}
 	}
 	key(e, "shift+enter")
 	if cur, _ := e.SearchInfo(); cur != 3 {
-		t.Fatalf("précédent circulaire : %d", cur)
+		t.Fatalf("circular previous: %d", cur)
 	}
 	if e.SelectedText() != "foo" {
-		t.Fatalf("l'occurrence courante devrait être sélectionnée : %q", e.SelectedText())
+		t.Fatalf("the current match should be selected: %q", e.SelectedText())
 	}
-	key(e, "alt+c") // sensible à la casse
+	key(e, "alt+c") // case-sensitive
 	key(e, "esc")
 	if e.SearchActive() || len(e.Matches()) != 0 {
-		t.Fatal("recherche fermée")
+		t.Fatal("search closed")
 	}
 }
 
@@ -323,7 +323,7 @@ func TestSearchPrefillAndNone(t *testing.T) {
 	e.SetSelection(Pos{0, 6}, Pos{0, 10})
 	key(e, "ctrl+f")
 	if _, total := e.SearchInfo(); total != 1 || string(e.search.query) != "beta" {
-		t.Fatalf("préremplissage : %q", string(e.search.query))
+		t.Fatalf("prefill: %q", string(e.search.query))
 	}
 	typ(e, "zzz")
 	if _, total := e.SearchInfo(); total != 0 {
@@ -341,7 +341,7 @@ func TestReplace(t *testing.T) {
 	typ(e, "a")
 	key(e, "tab")
 	typ(e, "XY")
-	key(e, "enter") // remplace la courante
+	key(e, "enter") // replaces the current one
 	if e.Text() != "XY b a b a" {
 		t.Fatalf("texte = %q", e.Text())
 	}
@@ -371,7 +371,7 @@ func TestViewDimensionsWideAndTabs(t *testing.T) {
 	if !cur.Visible || cur.X != e.GutterWidth() || cur.Y != 0 {
 		t.Errorf("curseur = %+v", cur)
 	}
-	// curseur après 3 caractères larges (6 colonnes) puis la tabulation (→ colonne 8)
+	// cursor after 3 wide characters (6 columns) then the tab (→ column 8)
 	e.moveTo(Pos{0, 4}, false, false)
 	_, cur = render(e, true)
 	if cur.X != e.GutterWidth()+8 {
@@ -383,7 +383,7 @@ func TestViewHorizontalScrollAndOverlays(t *testing.T) {
 	e := newEd(strings.Repeat("日", 30) + "\nsecond")
 	e.SetSize(16, 5)
 	e.moveTo(Pos{0, 25}, false, false)
-	e.SetSelection(Pos{0, 20}, Pos{1, 3}) // sélection multi-ligne
+	e.SetSelection(Pos{0, 20}, Pos{1, 3}) // multi-line selection
 	key(e, "ctrl+f")
 	typ(e, "é")
 	for i, l := range strings.Split(func() string { s, _ := render(e, false); return s }(), "\n") {
@@ -401,18 +401,18 @@ func TestHighlightMsgDebounce(t *testing.T) {
 	e.SetSize(40, 5)
 	cmd := e.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	if cmd == nil {
-		t.Fatal("un recalcul différé est attendu")
+		t.Fatal("a deferred recomputation is expected")
 	}
 	if e.hlVerRun == e.version {
-		t.Fatal("pas encore recoloré")
+		t.Fatal("not recoloured yet")
 	}
-	e.Update(HighlightMsg{ID: e.ID, Version: e.version - 1}) // périmé
+	e.Update(HighlightMsg{ID: e.ID, Version: e.version - 1}) // stale
 	if e.hlVerRun == e.version {
-		t.Fatal("message périmé ignoré")
+		t.Fatal("stale message must be ignored")
 	}
 	e.Update(HighlightMsg{ID: e.ID, Version: e.version})
 	if e.hlVerRun != e.version {
-		t.Fatal("recoloré")
+		t.Fatal("recoloured")
 	}
 }
 

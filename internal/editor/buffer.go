@@ -5,14 +5,14 @@ import (
 	"unicode"
 )
 
-// Pos est une position dans le document : ligne et colonne (index de rune).
+// Pos is a position in the document: line and column (rune index).
 type Pos struct{ Line, Col int }
 
 func (p Pos) Less(q Pos) bool {
 	return p.Line < q.Line || (p.Line == q.Line && p.Col < q.Col)
 }
 
-// editKind sert à regrouper les frappes consécutives dans l'historique.
+// editKind is used to group consecutive keystrokes in the history.
 type editKind int
 
 const (
@@ -25,18 +25,18 @@ const (
 type edit struct {
 	start    Pos
 	del, ins string
-	before   Pos // curseur avant l'édition
-	after    Pos // curseur après l'édition
+	before   Pos // cursor before the edit
+	after    Pos // cursor after the edit
 	kind     editKind
 }
 
-// buffer : lignes de runes + historique d'annulation.
+// buffer: lines of runes + undo history.
 type buffer struct {
 	lines [][]rune
 
 	undo, redo []edit
 	lastKind   editKind
-	savedLen   int // taille de la pile d'annulation à l'enregistrement, -1 si inatteignable
+	savedLen   int // size of the undo stack at save time, -1 if unreachable
 }
 
 func newBuffer(text string) *buffer {
@@ -86,7 +86,7 @@ func (b *buffer) end() Pos {
 	return Pos{n, len(b.lines[n])}
 }
 
-// clamp ramène p dans le document.
+// clamp brings p back inside the document.
 func (b *buffer) clamp(p Pos) Pos {
 	if p.Line < 0 {
 		return Pos{}
@@ -103,7 +103,7 @@ func (b *buffer) clamp(p Pos) Pos {
 	return p
 }
 
-// textRange renvoie le texte entre a et b (a <= b).
+// textRange returns the text between a and b (a <= b).
 func (b *buffer) textRange(a, z Pos) string {
 	if a.Line == z.Line {
 		return string(b.lines[a.Line][a.Col:z.Col])
@@ -119,7 +119,7 @@ func (b *buffer) textRange(a, z Pos) string {
 	return sb.String()
 }
 
-// endOf calcule la position de fin d'un texte inséré en start.
+// endOf computes the end position of a text inserted at start.
 func endOf(start Pos, s string) Pos {
 	n := strings.Count(s, "\n")
 	if n == 0 {
@@ -129,7 +129,7 @@ func endOf(start Pos, s string) Pos {
 	return Pos{start.Line + n, len([]rune(last))}
 }
 
-// apply remplace [a,z) par ins sans toucher à l'historique ; renvoie la fin de l'insertion.
+// apply replaces [a,z) with ins without touching the history; it returns the end of the insertion.
 func (b *buffer) apply(a, z Pos, ins string) Pos {
 	insLines := splitLines(ins)
 	head := b.lines[a.Line][:a.Col]
@@ -158,13 +158,13 @@ func (b *buffer) apply(a, z Pos, ins string) Pos {
 	return end
 }
 
-// replace remplace [a,z) par ins en enregistrant l'édition. Renvoie la fin de l'insertion.
-// before est la position du curseur avant l'opération.
+// replace replaces [a,z) with ins and records the edit. It returns the end of the insertion.
+// before is the cursor position before the operation.
 func (b *buffer) replace(a, z Pos, ins string, kind editKind, before Pos) Pos {
 	del := b.textRange(a, z)
 	end := b.apply(a, z, ins)
 	e := edit{start: a, del: del, ins: ins, before: before, after: end, kind: kind}
-	if b.savedLen > len(b.undo) { // le point d'enregistrement est écrasé
+	if b.savedLen > len(b.undo) { // the save point is overwritten
 		b.savedLen = -1
 	}
 	b.redo = nil
@@ -175,7 +175,7 @@ func (b *buffer) replace(a, z Pos, ins string, kind editKind, before Pos) Pos {
 	return end
 }
 
-// merge fusionne e dans la dernière édition si elles forment un même groupe de frappe.
+// merge merges e into the last edit if they form a single typing group.
 func (b *buffer) merge(e edit) bool {
 	n := len(b.undo)
 	if n == 0 || e.kind == kindOther || e.kind != b.lastKind || b.savedLen == n {
@@ -191,7 +191,7 @@ func (b *buffer) merge(e edit) bool {
 			e.start != endOf(last.start, last.ins) {
 			return false
 		}
-		// un espace après un mot ouvre un nouveau groupe, pour un undo plus naturel
+		// a space after a word starts a new group, for a more natural undo
 		if r := []rune(e.ins); len(r) == 1 && unicode.IsSpace(r[0]) {
 			return false
 		}
@@ -217,10 +217,10 @@ func (b *buffer) merge(e edit) bool {
 	return false
 }
 
-// breakGroup interrompt le regroupement (déplacement du curseur, etc.).
+// breakGroup interrupts grouping (cursor movement, etc.).
 func (b *buffer) breakGroup() { b.lastKind = kindOther }
 
-// undoEdit annule la dernière édition ; renvoie la position du curseur.
+// undoEdit undoes the last edit; it returns the cursor position.
 func (b *buffer) undoEdit() (Pos, bool) {
 	n := len(b.undo)
 	if n == 0 {
@@ -249,7 +249,7 @@ func (b *buffer) redoEdit() (Pos, bool) {
 
 func isWordRune(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' }
 
-// wordLeft : début du mot précédent.
+// wordLeft: start of the previous word.
 func (b *buffer) wordLeft(p Pos) Pos {
 	if p.Col == 0 {
 		if p.Line == 0 {
@@ -268,7 +268,7 @@ func (b *buffer) wordLeft(p Pos) Pos {
 	return Pos{p.Line, c}
 }
 
-// wordRight : fin du mot suivant.
+// wordRight: end of the next word.
 func (b *buffer) wordRight(p Pos) Pos {
 	l := b.lines[p.Line]
 	if p.Col >= len(l) {
@@ -287,7 +287,7 @@ func (b *buffer) wordRight(p Pos) Pos {
 	return Pos{p.Line, c}
 }
 
-// wordAt renvoie les bornes du mot (ou de la suite de non-mots) sous p.
+// wordAt returns the bounds of the word (or run of non-word characters) under p.
 func (b *buffer) wordAt(p Pos) (Pos, Pos) {
 	l := b.lines[p.Line]
 	if len(l) == 0 {

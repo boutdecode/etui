@@ -1,5 +1,5 @@
-// Package editor implémente un widget d'édition de texte maison au-dessus d'un
-// buffer de runes : curseur, sélection, annulation, recherche, coloration.
+// Package editor implements a home-made text editing widget on top of a
+// rune buffer: cursor, selection, undo, search, highlighting.
 package editor
 
 import (
@@ -16,6 +16,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"boutdecode/etui/internal/highlight"
+	"boutdecode/etui/internal/i18n"
 )
 
 const (
@@ -23,48 +24,48 @@ const (
 	highlightWait = 120 * time.Millisecond
 )
 
-// CutMsg supprime la sélection (le texte a déjà été copié par l'appelant).
+// CutMsg deletes the selection (the text has already been copied by the caller).
 type CutMsg struct{}
 
-// HighlightMsg déclenche le recalcul différé de la coloration d'un onglet.
+// HighlightMsg triggers the deferred recomputation of a tab's highlighting.
 type HighlightMsg struct {
 	ID      int
 	Version int
 }
 
-// Editor est un onglet : un document, son curseur, son défilement et son état.
+// Editor is a tab: a document, its cursor, its scrolling and its state.
 type Editor struct {
 	ID   int
-	Path string // chemin absolu, vide si sans nom
+	Path string // absolute path, empty if unnamed
 
 	buf    *buffer
 	cur    Pos
 	anchor Pos
 	sel    bool
-	wantX  int // colonne d'affichage souhaitée pour les déplacements verticaux
+	wantX  int // wanted display column for vertical moves
 
-	top, leftCol  int // défilement (ligne, colonne d'affichage)
-	width, height int // taille totale allouée (barre de recherche comprise)
+	top, leftCol  int // scroll offset (line, display column)
+	width, height int // total allocated size (search bar included)
 
 	crlf bool
 
 	hl       *highlight.Highlighter
 	tokens   [][]chroma.TokenType
-	version  int // incrémenté à chaque modification
-	hlVerRun int // version colorée en dernier
+	version  int // incremented on every modification
+	hlVerRun int // last highlighted version
 
 	search searchState
 }
 
-// New crée un onglet vide.
+// New creates an empty tab.
 func New(id int) *Editor {
 	e := &Editor{ID: id, buf: newBuffer("")}
 	e.hl = highlight.New("", "")
 	return e
 }
 
-// Open charge un fichier. Un fichier inexistant donne un document vide
-// qui sera créé à l'enregistrement.
+// Open loads a file. A nonexistent file gives an empty document
+// that will be created on save.
 func Open(id int, path string) (*Editor, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -75,12 +76,12 @@ func Open(id int, path string) (*Editor, error) {
 	data, err := os.ReadFile(abs)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
-		// nouveau fichier
+		// new file
 	case err != nil:
 		return nil, err
 	default:
 		if bytes.IndexByte(data, 0) >= 0 {
-			return nil, fmt.Errorf("%s : fichier binaire non supporté", filepath.Base(abs))
+			return nil, errors.New(i18n.T(i18n.ErrBinaryFile, filepath.Base(abs)))
 		}
 		text := string(data)
 		if strings.Contains(text, "\r\n") {
@@ -94,10 +95,10 @@ func Open(id int, path string) (*Editor, error) {
 	return e, nil
 }
 
-// Save enregistre le document sur disque.
+// Save writes the document to disk.
 func (e *Editor) Save() error {
 	if e.Path == "" {
-		return errors.New("document sans nom")
+		return errors.New(i18n.T(i18n.ErrNoName))
 	}
 	text := e.buf.text()
 	if e.crlf {
@@ -114,10 +115,10 @@ func (e *Editor) Save() error {
 	return nil
 }
 
-// Name est le nom court affiché dans l'onglet.
+// Name is the short name shown in the tab.
 func (e *Editor) Name() string {
 	if e.Path == "" {
-		return "sans nom"
+		return i18n.T(i18n.NoName)
 	}
 	return filepath.Base(e.Path)
 }
@@ -127,7 +128,7 @@ func (e *Editor) Language() string { return e.hl.Language() }
 func (e *Editor) Text() string     { return e.buf.text() }
 func (e *Editor) Cursor() Pos      { return e.cur }
 
-// SetSize fixe la taille allouée à l'éditeur.
+// SetSize sets the size allocated to the editor.
 func (e *Editor) SetSize(w, h int) {
 	e.width, e.height = w, h
 	e.scrollToCursor()
@@ -138,9 +139,9 @@ func (e *Editor) recolor() {
 	e.hlVerRun = e.version
 }
 
-// --- sélection -------------------------------------------------------------
+// --- selection -------------------------------------------------------------
 
-// Selection renvoie la sélection ordonnée, ok=false si vide.
+// Selection returns the ordered selection, ok=false if empty.
 func (e *Editor) Selection() (a, z Pos, ok bool) {
 	if !e.sel || e.anchor == e.cur {
 		return Pos{}, Pos{}, false
@@ -151,7 +152,7 @@ func (e *Editor) Selection() (a, z Pos, ok bool) {
 	return e.anchor, e.cur, true
 }
 
-// SelectedText renvoie le texte sélectionné.
+// SelectedText returns the selected text.
 func (e *Editor) SelectedText() string {
 	a, z, ok := e.Selection()
 	if !ok {
@@ -166,7 +167,7 @@ func (e *Editor) SelectAll() {
 	e.scrollToCursor()
 }
 
-// SetSelection sélectionne [a,z) et place le curseur en z.
+// SetSelection selects [a,z) and places the cursor at z.
 func (e *Editor) SetSelection(a, z Pos) {
 	e.buf.breakGroup()
 	e.anchor, e.cur, e.sel = e.buf.clamp(a), e.buf.clamp(z), true
@@ -193,7 +194,7 @@ func (e *Editor) selectWord() {
 	e.scrollToCursor()
 }
 
-// --- édition ---------------------------------------------------------------
+// --- editing ---------------------------------------------------------------
 
 func normalize(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
@@ -207,7 +208,7 @@ func (e *Editor) afterEdit() {
 	e.scrollToCursor()
 }
 
-// deleteSelection supprime la sélection ; renvoie true s'il y en avait une.
+// deleteSelection deletes the selection; it returns true if there was one.
 func (e *Editor) deleteSelection() bool {
 	a, z, ok := e.Selection()
 	if !ok {
@@ -219,10 +220,10 @@ func (e *Editor) deleteSelection() bool {
 	return true
 }
 
-// DeleteSelection est l'action « couper » une fois le texte copié.
+// DeleteSelection is the "cut" action once the text has been copied.
 func (e *Editor) DeleteSelection() bool { return e.deleteSelection() }
 
-// Insert insère du texte au curseur en remplaçant la sélection.
+// Insert inserts text at the cursor, replacing the selection.
 func (e *Editor) Insert(s string) {
 	s = normalize(s)
 	if s == "" {
@@ -302,9 +303,9 @@ func (e *Editor) Redo() bool {
 	return ok
 }
 
-// --- déplacements ----------------------------------------------------------
+// --- movement --------------------------------------------------------------
 
-// displayCol renvoie la colonne d'affichage de la rune col de la ligne l.
+// displayCol returns the display column of rune col of line l.
 func (e *Editor) displayCol(l, col int) int {
 	return displayCol(e.buf.lines[l], col)
 }
@@ -324,7 +325,7 @@ func runeWidth(r rune, x int) int {
 	return runewidth.RuneWidth(r)
 }
 
-// colAtDisplay renvoie l'index de rune le plus proche de la colonne d'affichage x.
+// colAtDisplay returns the rune index closest to display column x.
 func colAtDisplay(line []rune, x int) int {
 	cx := 0
 	for i, r := range line {
@@ -340,7 +341,7 @@ func colAtDisplay(line []rune, x int) int {
 	return len(line)
 }
 
-// moveTo déplace le curseur ; extend étend la sélection (Shift).
+// moveTo moves the cursor; extend extends the selection (Shift).
 func (e *Editor) moveTo(p Pos, extend, keepWant bool) {
 	e.buf.breakGroup()
 	p = e.buf.clamp(p)
@@ -411,7 +412,7 @@ func (e *Editor) textHeight() int {
 	return h
 }
 
-// home : « smart home », alterne début de texte / début de ligne.
+// home: "smart home", alternates between start of text and start of line.
 func (e *Editor) home(extend bool) {
 	l := e.buf.lines[e.cur.Line]
 	n := 0
@@ -425,9 +426,9 @@ func (e *Editor) home(extend bool) {
 	e.moveTo(Pos{e.cur.Line, c}, extend, false)
 }
 
-// --- défilement ------------------------------------------------------------
+// --- scrolling ------------------------------------------------------------
 
-// GutterWidth est la largeur de la marge des numéros de ligne.
+// GutterWidth is the width of the line-number gutter.
 func (e *Editor) GutterWidth() int {
 	return len(fmt.Sprint(len(e.buf.lines))) + 2
 }
@@ -475,9 +476,9 @@ func (e *Editor) clampTop() {
 	}
 }
 
-// --- touches ---------------------------------------------------------------
+// --- keys ------------------------------------------------------------------
 
-// Update traite un message ; le curseur et le contenu sont modifiés en place.
+// Update handles a message; the cursor and the content are modified in place.
 func (e *Editor) Update(msg tea.Msg) tea.Cmd {
 	before := e.version
 	switch m := msg.(type) {

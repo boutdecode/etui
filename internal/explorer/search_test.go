@@ -21,12 +21,12 @@ func typeQ(m *Model, s string) {
 	}
 }
 
-// startAndScan ouvre la recherche et injecte le résultat du parcours.
+// startAndScan opens the search and injects the result of the walk.
 func startAndScan(t *testing.T, m *Model) {
 	t.Helper()
 	cmd := press(m, "/")
 	if cmd == nil || !m.Searching() {
-		t.Fatal("recherche non démarrée")
+		t.Fatal("search not started")
 	}
 	m.Update(cmd())
 }
@@ -54,7 +54,7 @@ func TestWalkIgnoresAndLimit(t *testing.T) {
 	}
 	es, _ = walk(context.Background(), d, true, 100)
 	if len(es) != 5 { // a.go .h s s/b.go s/.hid
-		t.Fatalf("avec cachés : %d", len(es))
+		t.Fatalf("with hidden files: %d", len(es))
 	}
 	if es, tr := walk(context.Background(), d, true, 2); len(es) != 2 || !tr {
 		t.Fatalf("plafond : %d %v", len(es), tr)
@@ -62,7 +62,7 @@ func TestWalkIgnoresAndLimit(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if es, _ := walk(ctx, d, true, 100); len(es) != 0 {
-		t.Fatal("contexte annulé : aucune entrée attendue")
+		t.Fatal("cancelled context: no entry expected")
 	}
 }
 
@@ -73,7 +73,7 @@ func TestFilterNameOnlyCaseInsensitive(t *testing.T) {
 		t.Fatalf("filter = %v", got)
 	}
 	if len(filter(es, "é")) != 1 || len(filter(es, "")) != 0 {
-		t.Fatal("unicode / requête vide")
+		t.Fatal("unicode / empty query")
 	}
 }
 
@@ -97,10 +97,10 @@ func TestSearchEmptyDirAndKeysGoToQuery(t *testing.T) {
 		t.Fatalf("query = %q", m.Query())
 	}
 	if m.ShowHidden() {
-		t.Fatal(". ne doit pas basculer les cachés")
+		t.Fatal(". must not toggle hidden files")
 	}
 	if cmd := key(m, tea.Key{Code: tea.KeyEnter}); cmd != nil {
-		t.Fatal("Entrée sans résultat ne fait rien")
+		t.Fatal("Enter with no result must do nothing")
 	}
 	m.View(theme.Resolve(theme.Auto, true), true)
 }
@@ -112,17 +112,17 @@ func TestSearchDeepAndRealTreeUntouched(t *testing.T) {
 	startAndScan(t, m)
 	typeQ(m, "deep")
 	if got := names(m); got != "zdir,zdir/sub,zdir/sub/deep.go" {
-		t.Fatalf("arbre filtré : %s", got)
+		t.Fatalf("filtered tree: %s", got)
 	}
 	if m.root.children[1].loaded || m.root.children[1].expanded {
-		t.Fatal("arbre réel modifié")
+		t.Fatal("real tree modified")
 	}
 	key(m, tea.Key{Code: tea.KeyEscape})
 	if m.Searching() || names(m) != before || m.cursor != cur {
 		t.Fatalf("restauration : %s %d", names(m), m.cursor)
 	}
 	if m.root.children[1].loaded {
-		t.Fatal("zdir ne doit pas avoir été chargé")
+		t.Fatal("zdir must not have been loaded")
 	}
 }
 
@@ -132,7 +132,7 @@ func TestSearchStaleResultIgnored(t *testing.T) {
 	typeQ(m, "x")
 	m.Update(SearchResultMsg{Gen: m.gen - 1, Entries: []entry{{filepath.Join(m.Root(), "x-stale"), false}}})
 	if strings.Contains(names(m), "stale") {
-		t.Fatal("résultat périmé pris en compte")
+		t.Fatal("stale result taken into account")
 	}
 }
 
@@ -153,7 +153,7 @@ func TestSearchEnterFileAndDir(t *testing.T) {
 		t.Fatal("pas de commande pour un dossier")
 	}
 	if m.Searching() || m.Selected() != filepath.Join(d, "zdir/sub") || !m.root.children[1].expanded {
-		t.Fatalf("révélation : %s %s", m.Selected(), names(m))
+		t.Fatalf("reveal: %s %s", m.Selected(), names(m))
 	}
 }
 

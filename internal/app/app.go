@@ -1,4 +1,4 @@
-// Package app contient le modèle racine : disposition, focus, onglets, presse-papiers.
+// Package app holds the root model: layout, focus, tabs, clipboard.
 package app
 
 import (
@@ -14,6 +14,7 @@ import (
 	"boutdecode/etui/internal/clip"
 	"boutdecode/etui/internal/editor"
 	"boutdecode/etui/internal/explorer"
+	"boutdecode/etui/internal/i18n"
 	"boutdecode/etui/internal/theme"
 )
 
@@ -32,17 +33,17 @@ const (
 	promptQuit
 )
 
-// Options configure le démarrage.
+// Options configures the start-up.
 type Options struct {
-	Dir   string   // racine de l'explorateur
-	Files []string // fichiers à ouvrir au démarrage
+	Dir   string   // explorer root
+	Files []string // files to open at start-up
 	Mode  theme.Mode
-	// Transparent laisse le fond du terminal au lieu d'appliquer celui du thème.
+	// Transparent keeps the terminal background instead of applying the theme's.
 	Transparent bool
-	Clip        clip.Clipboard // presse-papiers (système par défaut)
+	Clip        clip.Clipboard // clipboard (system one by default)
 }
 
-// Model est le modèle racine Bubble Tea.
+// Model is the root Bubble Tea model.
 type Model struct {
 	explorer *explorer.Model
 	tabs     []*editor.Editor
@@ -55,10 +56,10 @@ type Model struct {
 	bgDark      bool
 	th          theme.Theme
 	clip        clip.Clipboard
-	register    string // repli quand le presse-papiers système est indisponible
+	register    string // fallback when the system clipboard is unavailable
 
-	width, height int // zone utile, hors marges
-	winW, winH    int // taille de la fenêtre
+	width, height int // usable area, margins excluded
+	winW, winH    int // window size
 	status        string
 	statusErr     bool
 	prompt        promptKind
@@ -67,7 +68,7 @@ type Model struct {
 	nextID        int
 }
 
-// New construit le modèle.
+// New builds the model.
 func New(o Options) *Model {
 	if o.Dir == "" {
 		o.Dir = "."
@@ -80,7 +81,7 @@ func New(o Options) *Model {
 		showTree:    true,
 		mode:        o.Mode,
 		transparent: o.Transparent,
-		bgDark:      true, // repli si le terminal ne répond pas à la requête de fond
+		bgDark:      true, // fallback if the terminal does not answer the background query
 		clip:        o.Clip,
 		focus:       focusExplorer,
 	}
@@ -91,10 +92,10 @@ func New(o Options) *Model {
 	return m
 }
 
-// Init demande la couleur de fond du terminal pour choisir le thème.
+// Init asks for the terminal background colour to pick the theme.
 func (m *Model) Init() tea.Cmd { return tea.RequestBackgroundColor }
 
-// --- accesseurs (tests) ----------------------------------------------------
+// --- accessors (tests) ----------------------------------------------------
 
 func (m *Model) ActiveEditor() *editor.Editor {
 	if m.active >= 0 && m.active < len(m.tabs) {
@@ -106,7 +107,7 @@ func (m *Model) Tabs() []*editor.Editor { return m.tabs }
 func (m *Model) Status() string         { return m.status }
 func (m *Model) Theme() theme.Theme     { return m.th }
 
-// --- mise en page ----------------------------------------------------------
+// --- layout ---------------------------------------------------------------
 
 func (m *Model) explorerWidth() int {
 	if !m.showTree || m.width < 50 {
@@ -140,7 +141,7 @@ func (m *Model) layout() {
 	}
 }
 
-// --- ouverture / fermeture -------------------------------------------------
+// --- open / close ---------------------------------------------------------
 
 func (m *Model) setStatus(s string, isErr bool) { m.status, m.statusErr = s, isErr }
 
@@ -157,7 +158,7 @@ func (m *Model) openFile(path string) {
 		}
 	}
 	if st, err := os.Stat(abs); err == nil && st.IsDir() {
-		m.setStatus(abs+" est un dossier", true)
+		m.setStatus(i18n.T(i18n.IsDirectory, abs), true)
 		return
 	}
 	m.nextID++
@@ -202,20 +203,20 @@ func (m *Model) modifiedTabs() []*editor.Editor {
 
 func (m *Model) save(t *editor.Editor) bool {
 	if err := t.Save(); err != nil {
-		m.setStatus("Échec de l'enregistrement : "+err.Error(), true)
+		m.setStatus(i18n.T(i18n.SaveFailed, err.Error()), true)
 		return false
 	}
-	m.setStatus("Enregistré : "+t.Name(), false)
+	m.setStatus(i18n.T(i18n.Saved, t.Name()), false)
 	m.explorer.Reload()
 	return true
 }
 
-// --- presse-papiers --------------------------------------------------------
+// --- clipboard ------------------------------------------------------------
 
 func (m *Model) copyText(text string) tea.Cmd {
 	m.register = text
 	if err := m.clip.Write(text); err != nil {
-		// repli OSC52 : fonctionne à travers SSH dans la plupart des terminaux modernes
+		// OSC52 fallback: works over SSH in most modern terminals
 		return tea.SetClipboard(text)
 	}
 	return nil
@@ -300,7 +301,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+t":
 		m.mode = m.mode.Next()
 		m.th = theme.Resolve(m.mode, m.bgDark)
-		m.setStatus("Thème : "+m.mode.String(), false)
+		m.setStatus(i18n.T(i18n.ThemeNotice, m.mode.Label()), false)
 		return m, nil
 	case "ctrl+e":
 		m.showTree = !m.showTree
@@ -366,7 +367,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c":
 		text := ed.SelectedText()
 		if text == "" {
-			m.setStatus("Rien à copier", false)
+			m.setStatus(i18n.T(i18n.NothingToCopy), false)
 			return m, nil
 		}
 		return m, m.copyText(text)
@@ -391,7 +392,7 @@ func (m *Model) handlePrompt(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	kind := m.prompt
 	m.prompt = promptNone
 	ks := k.Keystroke()
-	yes := ks == "o" || ks == "y" || ks == "enter"
+	yes := ks == i18n.T(i18n.PromptYesKey) || ks == "enter"
 	no := ks == "n"
 	switch kind {
 	case promptClose:
@@ -491,9 +492,9 @@ func (m *Model) statusBar() string {
 			if m.promptTab < len(m.tabs) {
 				name = m.tabs[m.promptTab].Name()
 			}
-			q = fmt.Sprintf(" « %s » a des modifications. Enregistrer avant de fermer ? (o)ui / (n)on / Échap pour annuler", name)
+			q = " " + i18n.T(i18n.PromptClose, name)
 		case promptQuit:
-			q = fmt.Sprintf(" %d fichier(s) modifié(s). (o) enregistrer et quitter / (n) quitter sans enregistrer / Échap pour annuler", len(m.modifiedTabs()))
+			q = " " + i18n.T(i18n.PromptQuit, len(m.modifiedTabs()))
 		}
 		return base.Background(th.Error).Foreground(th.Bg).Bold(true).Render(fit(q, m.width))
 	}
@@ -508,11 +509,15 @@ func (m *Model) statusBar() string {
 		}
 		right = fmt.Sprintf("%s │ Ln %d, Col %d │ ", ed.Language(), c.Line+1, c.Col+1)
 	}
-	themeName := m.mode.String()
+	themeName := m.mode.Label()
 	if m.mode == theme.Auto {
-		themeName += "/" + map[bool]string{true: "sombre", false: "clair"}[m.th.Dark]
+		if m.th.Dark {
+			themeName += "/" + theme.Dark.Label()
+		} else {
+			themeName += "/" + theme.Light.Label()
+		}
 	}
-	right += "Thème " + themeName + " │ F1 aide "
+	right += i18n.T(i18n.StatusTheme, themeName) + " │ " + i18n.T(i18n.StatusHelp) + " "
 
 	rw := runewidth.StringWidth(right)
 	msg := ""
@@ -557,30 +562,46 @@ func (m *Model) displayPath(ed *editor.Editor) string {
 	return ed.Path
 }
 
-var helpLines = []string{
-	"Raccourcis",
-	"",
-	"  Fichiers   Ctrl+S enregistrer · Ctrl+W fermer l'onglet · Ctrl+Q quitter",
-	"  Onglets    Alt+←/→ ou Ctrl+PgUp/PgDn · Alt+1…9",
-	"  Panneaux   Ctrl+B focus explorateur/éditeur · Ctrl+E afficher/masquer · Échap → éditeur",
-	"  Explorateur  ↑↓ naviguer · Entrée ouvrir/déplier · ← replier · . fichiers cachés · F5 recharger · / rechercher (Échap quitte la recherche)",
-	"  Édition    Ctrl+Z annuler · Ctrl+Y rétablir · Tab insère une tabulation",
-	"  Sélection  Maj+flèches · Ctrl+Maj+←/→ par mot · Ctrl+A tout · Ctrl+L ligne · Ctrl+D mot",
-	"  Presse-papiers  Ctrl+C copier · Ctrl+X couper · Ctrl+V coller (repli OSC52 en SSH)",
-	"  Recherche  Ctrl+F chercher · Ctrl+R remplacer · Entrée/F3 suivant · Maj+Entrée précédent",
-	"             Alt+C casse · Tab changer de champ · Alt+A tout remplacer · Échap fermer",
-	"  Thème      Ctrl+T auto → clair → sombre",
-	"",
-	"Appuyez sur une touche pour fermer.",
+// helpLines builds the help screen in the active language. Section labels
+// are padded to the widest one so the texts line up whatever the language.
+func helpLines() []string {
+	type row struct{ label, text i18n.Key }
+	rows := []row{
+		{i18n.HelpFiles, i18n.HelpFilesText},
+		{i18n.HelpTabs, i18n.HelpTabsText},
+		{i18n.HelpPanes, i18n.HelpPanesText},
+		{i18n.HelpExplorer, i18n.HelpExplText},
+		{i18n.HelpEdit, i18n.HelpEditText},
+		{i18n.HelpSelect, i18n.HelpSelectText},
+		{i18n.HelpClipboard, i18n.HelpClipText},
+		{i18n.HelpSearch, i18n.HelpSearchText},
+		{"", i18n.HelpSearchMore}, // continuation line of the previous section
+		{i18n.HelpTheme, i18n.HelpThemeText},
+	}
+	lw := 0
+	for _, r := range rows {
+		if r.label != "" {
+			lw = max(lw, runewidth.StringWidth(i18n.T(r.label)))
+		}
+	}
+	lines := []string{i18n.T(i18n.HelpTitle), ""}
+	for _, r := range rows {
+		label := ""
+		if r.label != "" {
+			label = i18n.T(r.label)
+		}
+		lines = append(lines, "  "+fit(label, lw)+"  "+i18n.T(r.text))
+	}
+	return append(lines, "", i18n.T(i18n.HelpClose))
 }
 
 func (m *Model) emptyArea(w, h int) []string {
 	lines := make([]string, h)
 	var content []string
 	if m.help {
-		content = helpLines
+		content = helpLines()
 	} else {
-		content = []string{"etui", "", "Ouvrez un fichier depuis l'explorateur (Entrée).", "F1 : aide"}
+		content = []string{"etui", "", i18n.T(i18n.EmptyHint), i18n.T(i18n.EmptyHelp)}
 	}
 	dim := lipgloss.NewStyle().Foreground(m.th.Dim)
 	title := lipgloss.NewStyle().Foreground(m.th.Accent).Bold(true)
@@ -597,7 +618,7 @@ func (m *Model) emptyArea(w, h int) []string {
 	return lines
 }
 
-// View assemble l'écran.
+// View assembles the screen.
 func (m *Model) View() tea.View {
 	if m.width < 10 || m.height < 4 {
 		return tea.NewView("")
@@ -668,9 +689,9 @@ func (m *Model) View() tea.View {
 	return v
 }
 
-// paintBackground applique le fond et le texte du thème à toutes les cellules
-// sans style propre : l'OSC 11 (v.BackgroundColor) n'est pas géré par tous les
-// terminaux, alors on réémet le fond après chaque réinitialisation SGR.
+// paintBackground applies the theme background and text colour to every cell
+// without a style of its own: OSC 11 (v.BackgroundColor) is not handled by all
+// terminals, so the background is re-emitted after every SGR reset.
 func paintBackground(s string, th theme.Theme) string {
 	probe := lipgloss.NewStyle().Background(th.Bg).Foreground(th.Fg).Render("\x00")
 	prefix, _, ok := strings.Cut(probe, "\x00")
@@ -686,8 +707,8 @@ func paintBackground(s string, th theme.Theme) string {
 	return strings.Join(lines, "\n")
 }
 
-// Marges autour de l'interface (colonnes à gauche/droite, lignes en haut/bas),
-// supprimées sur les petits terminaux pour garder de la place utile.
+// Margins around the interface (columns on the left/right, lines at the top/bottom),
+// removed on small terminals to keep usable space.
 const (
 	marginX = 2
 	marginY = 1
@@ -700,7 +721,7 @@ func margins(w, h int) (mx, my int) {
 	return 0, 0
 }
 
-// addMargins entoure s (de largeur w) de mx colonnes et my lignes vides.
+// addMargins surrounds s (of width w) with mx empty columns and my empty lines.
 func addMargins(s string, mx, my, w int) string {
 	if mx == 0 && my == 0 {
 		return s
