@@ -1,19 +1,19 @@
 # etui
 
-Éditeur de texte en terminal (Bubble Tea v2, Lip Gloss v2, Chroma) avec explorateur de fichiers,
-onglets, sélection, presse-papiers, recherche/remplacement et coloration syntaxique.
+Terminal text editor (Bubble Tea v2, Lip Gloss v2, Chroma) with a file explorer, tabs, selection,
+clipboard, search/replace and syntax highlighting.
 
-## Utilisation
+## Usage
 
 ```sh
-make build            # produit bin/etui (Go ≥ 1.26 requis par Bubble Tea v2 ; GO=... pour changer de SDK)
-bin/etui [--theme=auto|light|dark] [--transparent] [dossier | fichier...]
+make build            # builds bin/etui (Go ≥ 1.26 required by Bubble Tea v2; GO=... to change the SDK)
+bin/etui [--theme=auto|light|dark] [--lang=auto|en|fr] [--transparent] [folder | file...]
 make test
 ```
 
 ## Installation
 
-Télécharger l'archive correspondant à votre système (linux/darwin, amd64/arm64) depuis la page [Releases](../../releases), puis :
+Download the archive for your system (linux/darwin, amd64/arm64) from the [Releases](../../releases) page, then:
 
 ```sh
 tar xzf etui_<version>_<os>_<arch>.tar.gz
@@ -21,40 +21,62 @@ sudo mv etui /usr/local/bin/
 etui --version
 ```
 
-## Publier une version
+## Publishing a release
 
 ```sh
 git tag v1.2.3
 git push origin v1.2.3
 ```
 
-Le workflow `Release` lance les tests puis GoReleaser, qui publie les binaires, `checksums.txt` et le changelog.
+The `Release` workflow runs the tests, then GoReleaser, which publishes the binaries, `checksums.txt` and the changelog.
 
-Le thème clair/sombre est détecté depuis le fond du terminal (repli : sombre). `Ctrl+T` fait défiler auto → clair → sombre.
-Le fond du thème est appliqué au terminal ; `--transparent` conserve le fond du terminal.
+## Theme
 
-## Raccourcis (F1 dans l'application)
+The light/dark theme is detected from the terminal background (fallback: dark). `Ctrl+T` cycles auto → light → dark.
+The theme background is applied to the terminal; `--transparent` keeps the terminal background.
 
-| Action | Touches |
+## Language
+
+The interface is available in English (default) and French. The language is chosen, in order of precedence, from:
+
+1. the `--lang=auto|en|fr` flag;
+2. the `ETUI_LANG` environment variable;
+3. the standard locale variables `LC_ALL`, `LC_MESSAGES`, `LANGUAGE` and `LANG`;
+4. English.
+
+The first variable that is set decides, as with POSIX locales (for example `LC_ALL=C` gives English even if `LANG=fr_FR.UTF-8`).
+Values such as `fr`, `fr_FR` or `fr_FR.UTF-8` select French; any other locale selects English. An unknown `ETUI_LANG` is ignored,
+an unknown `--lang` is an error, and `--lang=auto` (or an empty value) goes back to detection from the system.
+
+```sh
+etui --lang=fr
+ETUI_LANG=fr etui
+LANG=fr_FR.UTF-8 etui
+```
+
+## Shortcuts (F1 in the application)
+
+| Action | Keys |
 |---|---|
-| Enregistrer / fermer l'onglet / quitter | `Ctrl+S` / `Ctrl+W` / `Ctrl+Q` |
-| Changer d'onglet | `Alt+←/→`, `Ctrl+PgUp/PgDn`, `Alt+1…9` |
-| Focus explorateur ↔ éditeur, afficher/masquer | `Ctrl+B`, `Ctrl+E` |
-| Explorateur | `↑↓`, `Entrée`, `←`, `.` (fichiers cachés), `F5`, `/` (rechercher par nom ; `Échap` quitte) |
-| Annuler / rétablir | `Ctrl+Z` / `Ctrl+Y` |
-| Sélection | `Maj+flèches`, `Ctrl+Maj+←/→`, `Ctrl+A` (tout), `Ctrl+L` (ligne), `Ctrl+D` (mot) |
-| Copier / couper / coller | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` (système, repli OSC52 en SSH) |
-| Rechercher / remplacer | `Ctrl+F` / `Ctrl+R` ; `Entrée`, `Maj+Entrée`, `Alt+C` (casse), `Tab`, `Alt+A` (tout) |
+| Save / close tab / quit | `Ctrl+S` / `Ctrl+W` / `Ctrl+Q` |
+| Switch tab | `Alt+←/→`, `Ctrl+PgUp/PgDn`, `Alt+1…9` |
+| Focus explorer ↔ editor, show/hide | `Ctrl+B`, `Ctrl+E` |
+| Explorer | `↑↓`, `Enter`, `←`, `.` (hidden files), `F5`, `/` (search by name; `Esc` leaves) |
+| Undo / redo | `Ctrl+Z` / `Ctrl+Y` |
+| Selection | `Shift+arrows`, `Ctrl+Shift+←/→`, `Ctrl+A` (all), `Ctrl+L` (line), `Ctrl+D` (word) |
+| Copy / cut / paste | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` (system clipboard, OSC52 fallback over SSH) |
+| Find / replace | `Ctrl+F` / `Ctrl+R`; `Enter`, `Shift+Enter`, `Alt+C` (case), `Tab`, `Alt+A` (all) |
 
 ## Structure
 
-- `internal/editor` : buffer de runes, sélection, historique, recherche, rendu (`view.go` définit l'ordre des superpositions : syntaxe < ligne courante < sélection < recherche).
-- `internal/explorer` : arbre à chargement paresseux (`search.go` : recherche asynchrone par nom).
-- `internal/highlight` : Chroma → un type de jeton par rune, recalcul différé.
-- `internal/theme` : thèmes clair/sombre et styles Chroma associés.
-- `internal/app` : modèle racine (disposition, focus, onglets, presse-papiers, confirmations).
-clair/sombre
-## Limites connues
+- `internal/editor`: rune buffer, selection, history, search, rendering (`view.go` defines the overlay order: syntax < current line < selection < search).
+- `internal/explorer`: lazily loaded tree (`search.go`: asynchronous search by name).
+- `internal/highlight`: Chroma → one token type per rune, deferred recomputation.
+- `internal/theme`: light/dark themes and the matching Chroma styles.
+- `internal/i18n`: translated messages (English, French) and language detection.
+- `internal/app`: root model (layout, focus, tabs, clipboard, confirmations).
 
-Pas de souris, pas de retour à la ligne automatique, recherche limitée à une seule ligne,
-pas d'« enregistrer sous ».
+## Known limitations
+
+No mouse support, no automatic line wrapping, search limited to a single line,
+no "save as".
