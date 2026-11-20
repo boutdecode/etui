@@ -14,6 +14,7 @@ import (
 	"boutdecode/etui/internal/clip"
 	"boutdecode/etui/internal/editor"
 	"boutdecode/etui/internal/explorer"
+	"boutdecode/etui/internal/i18n"
 	"boutdecode/etui/internal/theme"
 )
 
@@ -157,7 +158,7 @@ func (m *Model) openFile(path string) {
 		}
 	}
 	if st, err := os.Stat(abs); err == nil && st.IsDir() {
-		m.setStatus(abs+" est un dossier", true)
+		m.setStatus(i18n.T(i18n.IsDirectory, abs), true)
 		return
 	}
 	m.nextID++
@@ -202,10 +203,10 @@ func (m *Model) modifiedTabs() []*editor.Editor {
 
 func (m *Model) save(t *editor.Editor) bool {
 	if err := t.Save(); err != nil {
-		m.setStatus("Échec de l'enregistrement : "+err.Error(), true)
+		m.setStatus(i18n.T(i18n.SaveFailed, err.Error()), true)
 		return false
 	}
-	m.setStatus("Enregistré : "+t.Name(), false)
+	m.setStatus(i18n.T(i18n.Saved, t.Name()), false)
 	m.explorer.Reload()
 	return true
 }
@@ -300,7 +301,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+t":
 		m.mode = m.mode.Next()
 		m.th = theme.Resolve(m.mode, m.bgDark)
-		m.setStatus("Thème : "+m.mode.String(), false)
+		m.setStatus(i18n.T(i18n.ThemeNotice, m.mode.Label()), false)
 		return m, nil
 	case "ctrl+e":
 		m.showTree = !m.showTree
@@ -366,7 +367,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c":
 		text := ed.SelectedText()
 		if text == "" {
-			m.setStatus("Rien à copier", false)
+			m.setStatus(i18n.T(i18n.NothingToCopy), false)
 			return m, nil
 		}
 		return m, m.copyText(text)
@@ -391,7 +392,7 @@ func (m *Model) handlePrompt(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	kind := m.prompt
 	m.prompt = promptNone
 	ks := k.Keystroke()
-	yes := ks == "o" || ks == "y" || ks == "enter"
+	yes := ks == i18n.T(i18n.PromptYesKey) || ks == "enter"
 	no := ks == "n"
 	switch kind {
 	case promptClose:
@@ -491,9 +492,9 @@ func (m *Model) statusBar() string {
 			if m.promptTab < len(m.tabs) {
 				name = m.tabs[m.promptTab].Name()
 			}
-			q = fmt.Sprintf(" « %s » a des modifications. Enregistrer avant de fermer ? (o)ui / (n)on / Échap pour annuler", name)
+			q = " " + i18n.T(i18n.PromptClose, name)
 		case promptQuit:
-			q = fmt.Sprintf(" %d fichier(s) modifié(s). (o) enregistrer et quitter / (n) quitter sans enregistrer / Échap pour annuler", len(m.modifiedTabs()))
+			q = " " + i18n.T(i18n.PromptQuit, len(m.modifiedTabs()))
 		}
 		return base.Background(th.Error).Foreground(th.Bg).Bold(true).Render(fit(q, m.width))
 	}
@@ -508,11 +509,15 @@ func (m *Model) statusBar() string {
 		}
 		right = fmt.Sprintf("%s │ Ln %d, Col %d │ ", ed.Language(), c.Line+1, c.Col+1)
 	}
-	themeName := m.mode.String()
+	themeName := m.mode.Label()
 	if m.mode == theme.Auto {
-		themeName += "/" + map[bool]string{true: "sombre", false: "clair"}[m.th.Dark]
+		if m.th.Dark {
+			themeName += "/" + theme.Dark.Label()
+		} else {
+			themeName += "/" + theme.Light.Label()
+		}
 	}
-	right += "Thème " + themeName + " │ F1 aide "
+	right += i18n.T(i18n.StatusTheme, themeName) + " │ " + i18n.T(i18n.StatusHelp) + " "
 
 	rw := runewidth.StringWidth(right)
 	msg := ""
@@ -557,30 +562,46 @@ func (m *Model) displayPath(ed *editor.Editor) string {
 	return ed.Path
 }
 
-var helpLines = []string{
-	"Raccourcis",
-	"",
-	"  Fichiers   Ctrl+S enregistrer · Ctrl+W fermer l'onglet · Ctrl+Q quitter",
-	"  Onglets    Alt+←/→ ou Ctrl+PgUp/PgDn · Alt+1…9",
-	"  Panneaux   Ctrl+B focus explorateur/éditeur · Ctrl+E afficher/masquer · Échap → éditeur",
-	"  Explorateur  ↑↓ naviguer · Entrée ouvrir/déplier · ← replier · . fichiers cachés · F5 recharger · / rechercher (Échap quitte la recherche)",
-	"  Édition    Ctrl+Z annuler · Ctrl+Y rétablir · Tab insère une tabulation",
-	"  Sélection  Maj+flèches · Ctrl+Maj+←/→ par mot · Ctrl+A tout · Ctrl+L ligne · Ctrl+D mot",
-	"  Presse-papiers  Ctrl+C copier · Ctrl+X couper · Ctrl+V coller (repli OSC52 en SSH)",
-	"  Recherche  Ctrl+F chercher · Ctrl+R remplacer · Entrée/F3 suivant · Maj+Entrée précédent",
-	"             Alt+C casse · Tab changer de champ · Alt+A tout remplacer · Échap fermer",
-	"  Thème      Ctrl+T auto → clair → sombre",
-	"",
-	"Appuyez sur une touche pour fermer.",
+// helpLines builds the help screen in the active language. Section labels
+// are padded to the widest one so the texts line up whatever the language.
+func helpLines() []string {
+	type row struct{ label, text i18n.Key }
+	rows := []row{
+		{i18n.HelpFiles, i18n.HelpFilesText},
+		{i18n.HelpTabs, i18n.HelpTabsText},
+		{i18n.HelpPanes, i18n.HelpPanesText},
+		{i18n.HelpExplorer, i18n.HelpExplText},
+		{i18n.HelpEdit, i18n.HelpEditText},
+		{i18n.HelpSelect, i18n.HelpSelectText},
+		{i18n.HelpClipboard, i18n.HelpClipText},
+		{i18n.HelpSearch, i18n.HelpSearchText},
+		{"", i18n.HelpSearchMore}, // continuation line of the previous section
+		{i18n.HelpTheme, i18n.HelpThemeText},
+	}
+	lw := 0
+	for _, r := range rows {
+		if r.label != "" {
+			lw = max(lw, runewidth.StringWidth(i18n.T(r.label)))
+		}
+	}
+	lines := []string{i18n.T(i18n.HelpTitle), ""}
+	for _, r := range rows {
+		label := ""
+		if r.label != "" {
+			label = i18n.T(r.label)
+		}
+		lines = append(lines, "  "+fit(label, lw)+"  "+i18n.T(r.text))
+	}
+	return append(lines, "", i18n.T(i18n.HelpClose))
 }
 
 func (m *Model) emptyArea(w, h int) []string {
 	lines := make([]string, h)
 	var content []string
 	if m.help {
-		content = helpLines
+		content = helpLines()
 	} else {
-		content = []string{"etui", "", "Ouvrez un fichier depuis l'explorateur (Entrée).", "F1 : aide"}
+		content = []string{"etui", "", i18n.T(i18n.EmptyHint), i18n.T(i18n.EmptyHelp)}
 	}
 	dim := lipgloss.NewStyle().Foreground(m.th.Dim)
 	title := lipgloss.NewStyle().Foreground(m.th.Accent).Bold(true)

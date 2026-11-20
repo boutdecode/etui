@@ -12,6 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/mattn/go-runewidth"
 
+	"boutdecode/etui/internal/i18n"
 	"boutdecode/etui/internal/theme"
 )
 
@@ -318,7 +319,7 @@ func (m *Model) View(th theme.Theme, focused bool) string {
 		case m.scanning:
 			suffix = " …"
 		case m.truncated || m.truncatedWalk:
-			suffix = " (tronqué)"
+			suffix = " " + i18n.T(i18n.ExplorerTruncated)
 		}
 		q := " / " + m.query + "▏"
 		if room := w - runewidth.StringWidth(suffix); room > 0 {
@@ -339,11 +340,11 @@ func (m *Model) View(th theme.Theme, focused bool) string {
 			if m.searching && i == 0 && len(m.rows) == 0 {
 				switch {
 				case m.scanning:
-					msg = " Recherche…"
+					msg = " " + i18n.T(i18n.ExplorerSearching)
 				case m.query == "":
-					msg = " Tapez pour filtrer"
+					msg = " " + i18n.T(i18n.ExplorerTypeHint)
 				default:
-					msg = " Aucun résultat"
+					msg = " " + i18n.T(i18n.ExplorerNoResult)
 				}
 			}
 			lines = append(lines, lipgloss.NewStyle().Foreground(th.Dim).Render(pad(msg)))

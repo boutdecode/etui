@@ -1,11 +1,12 @@
 package editor
 
 import (
-	"fmt"
 	"strings"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
+
+	"boutdecode/etui/internal/i18n"
 )
 
 // Range désigne une occurrence sur une seule ligne : [Start, End) en runes.
@@ -186,7 +187,7 @@ func (e *Editor) searchStep(dir int) {
 	s := &e.search
 	n := len(s.matches)
 	if n == 0 {
-		s.notice = "Aucune occurrence"
+		s.notice = i18n.T(i18n.SearchNoMatch)
 		return
 	}
 	if s.idx < 0 {
@@ -232,7 +233,7 @@ func (e *Editor) replaceAll() {
 	s := &e.search
 	n := len(s.matches)
 	if n == 0 {
-		s.notice = "Aucune occurrence"
+		s.notice = i18n.T(i18n.SearchNoMatch)
 		return
 	}
 	before := e.cur
@@ -243,7 +244,7 @@ func (e *Editor) replaceAll() {
 	e.cur = e.buf.clamp(before)
 	e.afterEdit()
 	e.searchRecompute()
-	s.notice = fmt.Sprintf("%d remplacement(s)", n)
+	s.notice = i18n.T(i18n.SearchReplaced, n)
 }
 
 func (e *Editor) searchKey(m tea.KeyPressMsg) {

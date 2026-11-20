@@ -13,9 +13,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/mattn/go-runewidth"
 
 	"boutdecode/etui/internal/clip"
 	"boutdecode/etui/internal/explorer"
+	"boutdecode/etui/internal/i18n"
 	"boutdecode/etui/internal/theme"
 )
 
@@ -128,7 +130,7 @@ func TestCloseModifiedTabPrompt(t *testing.T) {
 	m.openFile(filepath.Join(m.explorer.Root(), "b.txt"))
 	typeText(m, "Y")
 	send(m, "ctrl+w")
-	send(m, "o") // enregistrer puis fermer
+	send(m, "y") // save, then close
 	data, _ = os.ReadFile(filepath.Join(m.explorer.Root(), "b.txt"))
 	if len(m.Tabs()) != 0 || string(data) != "Ybonjour\nmonde\n" {
 		t.Fatalf("enregistrer + fermer : %d %q", len(m.Tabs()), data)
@@ -216,7 +218,7 @@ func TestSaveFlow(t *testing.T) {
 		t.Fatal("modifié")
 	}
 	send(m, "ctrl+s")
-	if m.ActiveEditor().Modified() || !strings.Contains(m.Status(), "Enregistré") {
+	if m.ActiveEditor().Modified() || !strings.Contains(m.Status(), "Saved") {
 		t.Fatalf("status = %q", m.Status())
 	}
 	data, _ := os.ReadFile(filepath.Join(m.explorer.Root(), "a.go"))
@@ -341,5 +343,49 @@ func TestViewHasMargins(t *testing.T) {
 	}
 	if l := ansi.Strip(lines[5]); !strings.HasPrefix(l, "  ") || !strings.HasSuffix(l, "  ") {
 		t.Fatalf("marges gauche/droite attendues : %q", l)
+	}
+}
+
+func TestFrenchPromptAndHelp(t *testing.T) {
+	i18n.Set(i18n.FR)
+	defer i18n.Set(i18n.EN)
+
+	m, _ := newApp(t)
+	m.openFile(filepath.Join(m.explorer.Root(), "b.txt"))
+	typeText(m, "Y")
+	send(m, "ctrl+w")
+	send(m, "o") // "oui" saves and closes in French
+	data, _ := os.ReadFile(filepath.Join(m.explorer.Root(), "b.txt"))
+	if len(m.Tabs()) != 0 || string(data) != "Ybonjour\nmonde\n" {
+		t.Fatalf("French yes key: %d %q", len(m.Tabs()), data)
+	}
+	if got := m.Status(); !strings.Contains(got, "Enregistré") {
+		t.Fatalf("status = %q", got)
+	}
+}
+
+// Help texts must start on the same column in every language.
+func TestHelpAligned(t *testing.T) {
+	defer i18n.Set(i18n.EN)
+	texts := []i18n.Key{i18n.HelpFilesText, i18n.HelpExplText, i18n.HelpClipText, i18n.HelpSearchMore, i18n.HelpThemeText}
+	for _, l := range []i18n.Lang{i18n.EN, i18n.FR} {
+		i18n.Set(l)
+		lines := helpLines()
+		col := -1
+		for _, k := range texts {
+			found := false
+			for _, line := range lines {
+				if i := strings.Index(line, i18n.T(k)); i >= 0 {
+					w := runewidth.StringWidth(line[:i])
+					if col >= 0 && w != col {
+						t.Errorf("%v: %q starts at column %d, want %d", l, i18n.T(k), w, col)
+					}
+					col, found = w, true
+				}
+			}
+			if !found {
+				t.Errorf("%v: %q missing from help", l, i18n.T(k))
+			}
+		}
 	}
 }

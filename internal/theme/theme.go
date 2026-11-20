@@ -10,6 +10,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/styles"
+
+	"boutdecode/etui/internal/i18n"
 )
 
 // Mode est le réglage demandé par l'utilisateur.
@@ -21,14 +23,26 @@ const (
 	Dark
 )
 
+// String returns the language-independent name of the mode.
 func (m Mode) String() string {
 	switch m {
 	case Light:
-		return "clair"
+		return "light"
 	case Dark:
-		return "sombre"
+		return "dark"
 	}
 	return "auto"
+}
+
+// Label returns the mode name in the active interface language.
+func (m Mode) Label() string {
+	switch m {
+	case Light:
+		return i18n.T(i18n.ThemeLight)
+	case Dark:
+		return i18n.T(i18n.ThemeDark)
+	}
+	return i18n.T(i18n.ThemeAuto)
 }
 
 // Next fait défiler auto → clair → sombre → auto.
@@ -44,7 +58,7 @@ func ParseMode(s string) (Mode, error) {
 	case "dark", "sombre":
 		return Dark, nil
 	}
-	return Auto, fmt.Errorf("thème inconnu %q (auto, light ou dark)", s)
+	return Auto, fmt.Errorf(i18n.T(i18n.ErrUnknownTheme), s)
 }
 
 // Noms des styles Chroma utilisés.

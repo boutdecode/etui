@@ -8,6 +8,7 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/mattn/go-runewidth"
 
+	"boutdecode/etui/internal/i18n"
 	"boutdecode/etui/internal/theme"
 )
 
@@ -243,8 +244,12 @@ func (e *Editor) searchBar(th theme.Theme, w int) ([]string, int, int) {
 	if s.caseSens {
 		cs = "Aa"
 	}
-	label1 := " Rechercher : "
-	right := fmt.Sprintf(" %s  [%s]  Entrée↓ Maj+Entrée↑ Alt+C casse Échap ", info, cs)
+	// Both labels are padded to the same width so the fields line up.
+	l1, l2 := i18n.T(i18n.SearchLabel), i18n.T(i18n.ReplaceLabel)
+	lw := max(runewidth.StringWidth(l1), runewidth.StringWidth(l2))
+	label1 := " " + fit(l1, lw) + " : "
+	label2 := " " + fit(l2, lw) + " : "
+	right := fmt.Sprintf(" %s  [%s]  %s ", info, cs, i18n.T(i18n.SearchKeys))
 	room := w - runewidth.StringWidth(label1) - runewidth.StringWidth(right)
 	q := string(s.query)
 	if room < 1 {
@@ -262,8 +267,7 @@ func (e *Editor) searchBar(th theme.Theme, w int) ([]string, int, int) {
 	cx, cy := runewidth.StringWidth(label1)+runewidth.StringWidth(qv), 0
 
 	if s.mode == 2 {
-		label2 := " Remplacer  : "
-		hint := " Tab champ · Entrée remplace · Alt+A tout "
+		hint := " " + i18n.T(i18n.ReplaceKeys) + " "
 		room2 := w - runewidth.StringWidth(label2) - runewidth.StringWidth(hint)
 		if room2 < 1 {
 			hint, room2 = "", w-runewidth.StringWidth(label2)

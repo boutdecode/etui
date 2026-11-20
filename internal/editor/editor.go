@@ -16,6 +16,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"boutdecode/etui/internal/highlight"
+	"boutdecode/etui/internal/i18n"
 )
 
 const (
@@ -80,7 +81,7 @@ func Open(id int, path string) (*Editor, error) {
 		return nil, err
 	default:
 		if bytes.IndexByte(data, 0) >= 0 {
-			return nil, fmt.Errorf("%s : fichier binaire non supporté", filepath.Base(abs))
+			return nil, errors.New(i18n.T(i18n.ErrBinaryFile, filepath.Base(abs)))
 		}
 		text := string(data)
 		if strings.Contains(text, "\r\n") {
@@ -97,7 +98,7 @@ func Open(id int, path string) (*Editor, error) {
 // Save enregistre le document sur disque.
 func (e *Editor) Save() error {
 	if e.Path == "" {
-		return errors.New("document sans nom")
+		return errors.New(i18n.T(i18n.ErrNoName))
 	}
 	text := e.buf.text()
 	if e.crlf {
@@ -117,7 +118,7 @@ func (e *Editor) Save() error {
 // Name est le nom court affiché dans l'onglet.
 func (e *Editor) Name() string {
 	if e.Path == "" {
-		return "sans nom"
+		return i18n.T(i18n.NoName)
 	}
 	return filepath.Base(e.Path)
 }
