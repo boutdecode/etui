@@ -49,7 +49,7 @@ func ParseMode(s string) (Mode, error) {
 
 // Noms des styles Chroma utilisés.
 const (
-	ChromaDark  = "monokai"
+	ChromaDark  = "dracula"
 	ChromaLight = "github"
 )
 
@@ -99,26 +99,26 @@ func c(s string) color.Color { return lipgloss.Color(s) }
 func dark() Theme {
 	return Theme{
 		Dark: true, Chroma: styles.Get(ChromaDark),
-		Bg: c("#1e1f1c"), Fg: c("#f8f8f2"), Dim: c("#75715e"), Border: c("#49483e"),
-		LineNum: c("#75715e"), LineNumCur: c("#c0c0b0"), CurLineBg: c("#2a2b26"),
-		SelBg: c("#49483e"), MatchBg: c("#5c5a1e"), CurMatchBg: c("#e6a800"), MatchFg: c("#000000"),
-		TabBg: c("#2a2b26"), TabActiveBg: c("#1e1f1c"), TabActiveFg: c("#f8f8f2"),
-		StatusBg: c("#3b3c35"), StatusFg: c("#f8f8f2"),
-		Accent: c("#66d9ef"), Error: c("#f92672"),
-		ExplorerDirFg: c("#66d9ef"), ExplorerSelBg: c("#49483e"), ExplorerSelBgNF: c("#33342d"),
+		Bg: c("#14121f"), Fg: c("#e4e0f5"), Dim: c("#9893b8"), Border: c("#2d2a45"),
+		LineNum: c("#8680a8"), LineNumCur: c("#ff5fd2"), CurLineBg: c("#1f1b36"),
+		SelBg: c("#2a2548"), MatchBg: c("#4a3f7a"), CurMatchBg: c("#ffb86c"), MatchFg: c("#14121f"),
+		TabBg: c("#1b1830"), TabActiveBg: c("#14121f"), TabActiveFg: c("#ffffff"),
+		StatusBg: c("#7d56f4"), StatusFg: c("#ffffff"),
+		Accent: c("#ff5fd2"), Error: c("#ff5555"),
+		ExplorerDirFg: c("#7dd3fc"), ExplorerSelBg: c("#2a2548"), ExplorerSelBgNF: c("#211d3a"),
 	}
 }
 
 func light() Theme {
 	return Theme{
 		Dark: false, Chroma: styles.Get(ChromaLight),
-		Bg: c("#ffffff"), Fg: c("#24292e"), Dim: c("#6a737d"), Border: c("#d1d5da"),
-		LineNum: c("#959da5"), LineNumCur: c("#24292e"), CurLineBg: c("#f6f8fa"),
-		SelBg: c("#b3d4fc"), MatchBg: c("#fff5b1"), CurMatchBg: c("#ffd33d"), MatchFg: c("#000000"),
-		TabBg: c("#eaecef"), TabActiveBg: c("#ffffff"), TabActiveFg: c("#24292e"),
-		StatusBg: c("#e1e4e8"), StatusFg: c("#24292e"),
-		Accent: c("#0366d6"), Error: c("#cb2431"),
-		ExplorerDirFg: c("#0366d6"), ExplorerSelBg: c("#c8e1ff"), ExplorerSelBgNF: c("#e1e4e8"),
+		Bg: c("#faf8ff"), Fg: c("#2a2640"), Dim: c("#6b6590"), Border: c("#ddd8ef"),
+		LineNum: c("#9a95b8"), LineNumCur: c("#c026a3"), CurLineBg: c("#f1edff"),
+		SelBg: c("#d9ccff"), MatchBg: c("#fff0a8"), CurMatchBg: c("#ffc94d"), MatchFg: c("#2a2640"),
+		TabBg: c("#efeaff"), TabActiveBg: c("#faf8ff"), TabActiveFg: c("#2a2640"),
+		StatusBg: c("#7d56f4"), StatusFg: c("#ffffff"),
+		Accent: c("#c026a3"), Error: c("#c62828"),
+		ExplorerDirFg: c("#0369a1"), ExplorerSelBg: c("#e2d8ff"), ExplorerSelBgNF: c("#ece6ff"),
 	}
 }
 

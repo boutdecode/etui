@@ -232,7 +232,7 @@ func fit(s string, w int) string {
 func (e *Editor) searchBar(th theme.Theme, w int) ([]string, int, int) {
 	s := &e.search
 	st := lipgloss.NewStyle().Background(th.StatusBg).Foreground(th.StatusFg)
-	acc := st.Foreground(th.Accent).Bold(true)
+	acc := st.Bold(true)
 
 	cur, total := e.SearchInfo()
 	info := "0/0"
