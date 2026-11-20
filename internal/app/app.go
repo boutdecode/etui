@@ -239,6 +239,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case explorer.OpenFileMsg:
 		m.openFile(msg.Path)
 		return m, nil
+	case explorer.SearchResultMsg:
+		return m, m.explorer.Update(msg)
 	case editor.HighlightMsg:
 		for _, t := range m.tabs {
 			if t.ID == msg.ID {
@@ -283,6 +285,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.prompt = promptQuit
 			return m, nil
 		}
+		m.explorer.CancelSearch()
 		return m, tea.Quit
 	case "f1":
 		m.help = true
@@ -294,6 +297,9 @@ func (m *Model) handleKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "ctrl+e":
 		m.showTree = !m.showTree
+		if !m.showTree {
+			m.explorer.EndSearch()
+		}
 		if !m.showTree && m.focus == focusExplorer && ed != nil {
 			m.focus = focusEditor
 		}
@@ -339,7 +345,7 @@ func (m *Model) handleKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.focus == focusExplorer {
-		if ks == "esc" && ed != nil {
+		if ks == "esc" && ed != nil && !m.explorer.Searching() {
 			m.focus = focusEditor
 			return m, nil
 		}
@@ -402,8 +408,10 @@ func (m *Model) handlePrompt(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 			}
+			m.explorer.CancelSearch()
 			return m, tea.Quit
 		case no:
+			m.explorer.CancelSearch()
 			return m, tea.Quit
 		}
 	}
@@ -550,7 +558,7 @@ var helpLines = []string{
 	"  Fichiers   Ctrl+S enregistrer · Ctrl+W fermer l'onglet · Ctrl+Q quitter",
 	"  Onglets    Alt+←/→ ou Ctrl+PgUp/PgDn · Alt+1…9",
 	"  Panneaux   Ctrl+B focus explorateur/éditeur · Ctrl+E afficher/masquer · Échap → éditeur",
-	"  Explorateur  ↑↓ naviguer · Entrée ouvrir/déplier · ← replier · . fichiers cachés · F5 recharger",
+	"  Explorateur  ↑↓ naviguer · Entrée ouvrir/déplier · ← replier · . fichiers cachés · F5 recharger · / rechercher (Échap quitte la recherche)",
 	"  Édition    Ctrl+Z annuler · Ctrl+Y rétablir · Tab insère une tabulation",
 	"  Sélection  Maj+flèches · Ctrl+Maj+←/→ par mot · Ctrl+A tout · Ctrl+L ligne · Ctrl+D mot",
 	"  Presse-papiers  Ctrl+C copier · Ctrl+X couper · Ctrl+V coller (repli OSC52 en SSH)",

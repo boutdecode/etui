@@ -2,6 +2,7 @@
 package explorer
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
@@ -38,6 +39,20 @@ type Model struct {
 	height     int
 	rows       []*node
 	err        error
+
+	// recherche : pendant la saisie, rows/cursor/top désignent l'arbre éphémère
+	// et l'état de l'arbre réel est sauvegardé dans tree*.
+	searching     bool
+	query         string
+	gen           int
+	cancel        context.CancelFunc
+	entries       []entry
+	scanning      bool
+	truncated     bool // résultats affichés tronqués
+	truncatedWalk bool // parcours tronqué
+	treeRows      []*node
+	treeCursor    int
+	treeTop       int
 }
 
 // New crée un explorateur enraciné en dir.
@@ -189,6 +204,10 @@ func (m *Model) toggle(n *node, expand bool) {
 
 // Reload relit le disque en conservant l'état de l'arbre.
 func (m *Model) Reload() {
+	if m.searching { // recharge l'arbre réel, pas l'arbre éphémère
+		m.swapView()
+		defer m.swapView()
+	}
 	m.err = nil
 	var walk func(n *node)
 	walk = func(n *node) {
@@ -205,7 +224,17 @@ func (m *Model) Reload() {
 
 // Update traite une touche. Renvoie une commande d'ouverture de fichier le cas échéant.
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
+	if r, ok := msg.(SearchResultMsg); ok {
+		m.handleSearchMsg(r)
+		return nil
+	}
 	k, ok := msg.(tea.KeyPressMsg)
+	if ok && m.searching {
+		return m.updateSearch(k)
+	}
+	if ok && k.Keystroke() == "/" {
+		return m.startSearch()
+	}
 	if !ok || len(m.rows) == 0 {
 		if ok && k.Keystroke() == "." {
 			m.showHidden = !m.showHidden
@@ -282,7 +311,22 @@ func (m *Model) View(th theme.Theme, focused bool) string {
 		}
 		return s
 	}
-	head := lipgloss.NewStyle().Foreground(th.Accent).Bold(true).Render(pad(" " + strings.ToUpper(m.root.name)))
+	headText := " " + strings.ToUpper(m.root.name)
+	if m.searching {
+		suffix := ""
+		switch {
+		case m.scanning:
+			suffix = " …"
+		case m.truncated || m.truncatedWalk:
+			suffix = " (tronqué)"
+		}
+		q := " / " + m.query + "▏"
+		if room := w - runewidth.StringWidth(suffix); room > 0 {
+			q = runewidth.TruncateLeft(q, runewidth.StringWidth(q)-room, "…")
+		}
+		headText = q + suffix
+	}
+	head := lipgloss.NewStyle().Foreground(th.Accent).Bold(true).Render(pad(headText))
 	lines := []string{head}
 	selBg := th.ExplorerSelBgNF
 	if focused {
@@ -291,7 +335,18 @@ func (m *Model) View(th theme.Theme, focused bool) string {
 	for i := 0; i < m.bodyHeight(); i++ {
 		idx := m.top + i
 		if idx >= len(m.rows) {
-			lines = append(lines, strings.Repeat(" ", w))
+			msg := ""
+			if m.searching && i == 0 && len(m.rows) == 0 {
+				switch {
+				case m.scanning:
+					msg = " Recherche…"
+				case m.query == "":
+					msg = " Tapez pour filtrer"
+				default:
+					msg = " Aucun résultat"
+				}
+			}
+			lines = append(lines, lipgloss.NewStyle().Foreground(th.Dim).Render(pad(msg)))
 			continue
 		}
 		n := m.rows[idx]
@@ -302,7 +357,8 @@ func (m *Model) View(th theme.Theme, focused bool) string {
 				icon = "▾ "
 			}
 		}
-		text := pad(" " + strings.Repeat("  ", n.depth-1) + icon + n.name)
+		prefix := " " + strings.Repeat("  ", n.depth-1) + icon
+		text := pad(prefix + n.name)
 		st := lipgloss.NewStyle()
 		if n.dir {
 			st = st.Foreground(th.ExplorerDirFg)
@@ -311,6 +367,18 @@ func (m *Model) View(th theme.Theme, focused bool) string {
 		}
 		if idx == m.cursor {
 			st = st.Background(selBg).Bold(focused)
+		}
+		if ms, me, ok := matchRange(n.name, m.query); m.searching && ok {
+			a, b := len(prefix)+ms, len(prefix)+me
+			if a > len(text) {
+				a = len(text)
+			}
+			if b > len(text) {
+				b = len(text)
+			}
+			hl := st.Foreground(th.Accent).Bold(true).Underline(true)
+			lines = append(lines, st.Render(text[:a])+hl.Render(text[a:b])+st.Render(text[b:]))
+			continue
 		}
 		lines = append(lines, st.Render(text))
 	}

@@ -299,3 +299,21 @@ func TestIntegrationTeatest(t *testing.T) {
 		t.Fatalf("fichier = %q", data)
 	}
 }
+
+func TestExplorerSearchEscAndAsyncRouting(t *testing.T) {
+	m, _ := newApp(t)
+	m.focus = focusExplorer
+	cmd := send(m, "/")
+	if !m.explorer.Searching() || cmd == nil {
+		t.Fatal("recherche non démarrée")
+	}
+	send(m, "a")
+	m.Update(cmd()) // le résultat traverse app.Update
+	if m.explorer.Query() != "a" {
+		t.Fatal("requête perdue")
+	}
+	send(m, "esc")
+	if m.explorer.Searching() || m.focus != focusExplorer {
+		t.Fatal("le premier Échap ferme la recherche et garde le focus")
+	}
+}
