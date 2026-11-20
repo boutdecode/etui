@@ -11,6 +11,25 @@ bin/etui [--theme=auto|light|dark] [--transparent] [dossier | fichier...]
 make test
 ```
 
+## Installation
+
+Télécharger l'archive correspondant à votre système (linux/darwin, amd64/arm64) depuis la page [Releases](../../releases), puis :
+
+```sh
+tar xzf etui_<version>_<os>_<arch>.tar.gz
+sudo mv etui /usr/local/bin/
+etui --version
+```
+
+## Publier une version
+
+```sh
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+Le workflow `Release` lance les tests puis GoReleaser, qui publie les binaires, `checksums.txt` et le changelog.
+
 Le thème clair/sombre est détecté depuis le fond du terminal (repli : sombre). `Ctrl+T` fait défiler auto → clair → sombre.
 Le fond du thème est appliqué au terminal ; `--transparent` conserve le fond du terminal.
 
