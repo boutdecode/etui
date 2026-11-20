@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"github.com/charmbracelet/x/ansi"
 	"image/color"
 	"os"
 	"path/filepath"
@@ -328,5 +329,17 @@ func TestViewPaintsThemeBackground(t *testing.T) {
 	m.transparent = true
 	if strings.Contains(m.View().Content, paint) {
 		t.Fatal("--transparent ne doit pas peindre le fond")
+	}
+}
+
+func TestViewHasMargins(t *testing.T) {
+	m, _ := newApp(t, "a.go")
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
+	lines := strings.Split(m.View().Content, "\n")
+	if len(lines) != 20 || strings.TrimSpace(ansi.Strip(lines[0])) != "" || strings.TrimSpace(ansi.Strip(lines[19])) != "" {
+		t.Fatal("marge haute et basse vides attendues")
+	}
+	if l := ansi.Strip(lines[5]); !strings.HasPrefix(l, "  ") || !strings.HasSuffix(l, "  ") {
+		t.Fatalf("marges gauche/droite attendues : %q", l)
 	}
 }

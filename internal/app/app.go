@@ -57,7 +57,8 @@ type Model struct {
 	clip        clip.Clipboard
 	register    string // repli quand le presse-papiers système est indisponible
 
-	width, height int
+	width, height int // zone utile, hors marges
+	winW, winH    int // taille de la fenêtre
 	status        string
 	statusErr     bool
 	prompt        promptKind
@@ -233,7 +234,9 @@ func (m *Model) pasteText() string {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
+		m.winW, m.winH = msg.Width, msg.Height
+		mx, my := margins(m.winW, m.winH)
+		m.width, m.height = m.winW-2*mx, m.winH-2*my
 		m.layout()
 		return m, nil
 	case tea.BackgroundColorMsg:
@@ -640,7 +643,8 @@ func (m *Model) View() tea.View {
 	}
 	rows = append(rows, m.statusBar())
 
-	content := strings.Join(rows, "\n")
+	mx, my := margins(m.winW, m.winH)
+	content := addMargins(strings.Join(rows, "\n"), mx, my, m.width)
 	if !m.transparent {
 		content = paintBackground(content, th)
 	}
@@ -655,7 +659,7 @@ func (m *Model) View() tea.View {
 		if ew > 0 {
 			x += ew + 1
 		}
-		v.Cursor = tea.NewCursor(x, cur.Y+1)
+		v.Cursor = tea.NewCursor(x+mx, cur.Y+1+my)
 	}
 	if !m.transparent {
 		v.BackgroundColor = th.Bg
@@ -680,4 +684,40 @@ func paintBackground(s string, th theme.Theme) string {
 		lines[i] = prefix + l + "\x1b[m"
 	}
 	return strings.Join(lines, "\n")
+}
+
+// Marges autour de l'interface (colonnes à gauche/droite, lignes en haut/bas),
+// supprimées sur les petits terminaux pour garder de la place utile.
+const (
+	marginX = 2
+	marginY = 1
+)
+
+func margins(w, h int) (mx, my int) {
+	if w >= 60 && h >= 12 {
+		return marginX, marginY
+	}
+	return 0, 0
+}
+
+// addMargins entoure s (de largeur w) de mx colonnes et my lignes vides.
+func addMargins(s string, mx, my, w int) string {
+	if mx == 0 && my == 0 {
+		return s
+	}
+	side := strings.Repeat(" ", mx)
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = side + l + side
+	}
+	blank := strings.Repeat(" ", w+2*mx)
+	out := make([]string, 0, len(lines)+2*my)
+	for range my {
+		out = append(out, blank)
+	}
+	out = append(out, lines...)
+	for range my {
+		out = append(out, blank)
+	}
+	return strings.Join(out, "\n")
 }
