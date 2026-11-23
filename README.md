@@ -11,7 +11,28 @@ bin/etui [--theme=auto|light|dark] [--lang=auto|en|fr] [--transparent] [folder |
 make test
 ```
 
-## Installation
+## Quick install
+
+```sh
+curl -fsSL https://github.com/boutdecode/etui/releases/latest/download/install.sh | bash
+```
+
+The binary is installed in `~/.local/bin` (no `sudo`); the SHA256 checksum is verified before installing.
+Options (after `bash -s --`) and environment variables:
+
+```sh
+# a specific version
+curl -fsSL https://github.com/boutdecode/etui/releases/latest/download/install.sh | bash -s -- --version v1.2.3
+# another directory (or ETUI_INSTALL_DIR=...)
+curl -fsSL https://github.com/boutdecode/etui/releases/latest/download/install.sh | bash -s -- --dir /opt/bin
+# uninstall
+curl -fsSL https://github.com/boutdecode/etui/releases/latest/download/install.sh | bash -s -- --uninstall
+```
+
+Prefer to read the script before running it? Download [`install.sh`](install.sh), inspect it, then run `bash install.sh`.
+`ETUI_VERSION` is also honoured; options take precedence over environment variables.
+
+## Manual installation
 
 Download the archive for your system (linux/darwin, amd64/arm64) from the [Releases](../../releases) page, then:
 
@@ -75,6 +96,7 @@ LANG=fr_FR.UTF-8 etui
 - `internal/theme`: light/dark themes and the matching Chroma styles.
 - `internal/i18n`: translated messages (English, French) and language detection.
 - `internal/app`: root model (layout, focus, tabs, clipboard, confirmations).
+- `install.sh`: `curl | bash` installer, published as a release asset (`install_test.sh`: its tests; `make lint-sh test-sh`).
 
 ## Known limitations
 

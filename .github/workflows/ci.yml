@@ -41,3 +41,29 @@ jobs:
         run: |
           go mod tidy
           git diff --exit-code go.mod go.sum
+
+  installer:
+    name: Installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        if: runner.os == 'Linux'
+        run: shellcheck install.sh install_test.sh
+      - name: Script tests
+        run: bash install_test.sh
+      - name: End-to-end install
+        run: |
+          if ! curl -fsSLI -o /dev/null "https://github.com/${{ github.repository }}/releases/latest"; then
+            echo "No release published yet, skipping end-to-end test."
+            exit 0
+          fi
+          dir=$(mktemp -d)
+          bash install.sh --dir "$dir"
+          "$dir/etui" --version
+          bash install.sh --uninstall --dir "$dir"
+          test ! -e "$dir/etui"
