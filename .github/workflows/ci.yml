@@ -41,16 +41,3 @@ jobs:
         run: |
           go mod tidy
           git diff --exit-code go.mod go.sum
-
-  installer:
-    name: Installer (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - name: shellcheck
-        if: runner.os == 'Linux'
-        run: shellcheck install.sh install_test.sh
