@@ -16,6 +16,14 @@ archives:
   - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
+# install.sh is published as a release asset so that
+# releases/latest/download/install.sh is a stable URL. It builds the archive
+# name from this name_template (etui_<version>_<os>_<arch>.tar.gz, no "v"):
+# keep both in sync.
+release:
+  extra_files:
+    - glob: install.sh
+
 checksum:
   name_template: checksums.txt
 
