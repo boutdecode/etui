@@ -82,7 +82,7 @@ LANG=fr_FR.UTF-8 etui
 | Save / close tab / quit | `Ctrl+S` / `Ctrl+W` / `Ctrl+Q` |
 | Switch tab | `Alt+←/→`, `Ctrl+PgUp/PgDn`, `Alt+1…9` |
 | Focus explorer ↔ editor, show/hide | `Ctrl+B`, `Ctrl+E` |
-| Explorer | `↑↓`, `Enter`, `←`, `.` (hidden files), `F5`, `/` (search by name; `Esc` leaves) |
+| Explorer | `↑↓`, `Enter`, `←`, `.` / `Ctrl+H` (hidden files), `F5`, `/` (search by name; `Esc` leaves) |
 | Undo / redo | `Ctrl+Z` / `Ctrl+Y` |
 | Selection | `Shift+arrows`, `Ctrl+Shift+←/→`, `Ctrl+A` (all), `Ctrl+L` (line), `Ctrl+D` (word) |
 | Copy / cut / paste | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` (system clipboard, OSC52 fallback over SSH) |

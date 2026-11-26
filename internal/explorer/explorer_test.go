@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"boutdecode/etui/internal/i18n"
 	"boutdecode/etui/internal/theme"
 )
 
@@ -58,6 +59,13 @@ func TestOrderingAndHidden(t *testing.T) {
 	press(m, ".")
 	if got := names(m); !strings.Contains(got, ".hidden") {
 		t.Fatalf("hidden files missing: %s", got)
+	}
+	if v := m.View(theme.Theme{}, true); !strings.Contains(v, i18n.T(i18n.ExplorerHiddenOn)) {
+		t.Fatalf("hidden indicator missing: %s", v)
+	}
+	m.Update(tea.KeyPressMsg(tea.Key{Code: 'h', Mod: tea.ModCtrl}))
+	if got := names(m); strings.Contains(got, ".hidden") {
+		t.Fatalf("ctrl+h should hide again: %s", got)
 	}
 }
 

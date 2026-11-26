@@ -27,6 +27,7 @@ var fr = map[Key]string{
 	ExplorerTruncated: "(tronqué)",
 	ExplorerSearching: "Recherche…",
 	ExplorerTypeHint:  "Tapez pour filtrer",
+	ExplorerHiddenOn:  "cachés",
 	ExplorerNoResult:  "Aucun résultat",
 
 	IsDirectory:   "%s est un dossier",
@@ -51,7 +52,7 @@ var fr = map[Key]string{
 	HelpPanes:      "Panneaux",
 	HelpPanesText:  "Ctrl+B focus explorateur/éditeur · Ctrl+E afficher/masquer · Échap → éditeur",
 	HelpExplorer:   "Explorateur",
-	HelpExplText:   "↑↓ naviguer · Entrée ouvrir/déplier · ← replier · . fichiers cachés · F5 recharger · / rechercher (Échap quitte la recherche)",
+	HelpExplText:   "↑↓ naviguer · Entrée ouvrir/déplier · ← replier · ./Ctrl+H fichiers cachés · F5 recharger · / rechercher (Échap quitte la recherche)",
 	HelpEdit:       "Édition",
 	HelpEditText:   "Ctrl+Z annuler · Ctrl+Y rétablir · Tab insère une tabulation",
 	HelpSelect:     "Sélection",
