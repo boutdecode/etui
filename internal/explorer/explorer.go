@@ -237,9 +237,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 		return m.startSearch()
 	}
 	if !ok || len(m.rows) == 0 {
-		if ok && k.Keystroke() == "." {
-			m.showHidden = !m.showHidden
-			m.rebuild()
+		if ok && isHiddenToggle(k.Keystroke()) {
+			m.toggleHidden()
 		}
 		return nil
 	}
@@ -281,9 +280,8 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				}
 			}
 		}
-	case ".":
-		m.showHidden = !m.showHidden
-		m.rebuild()
+	case ".", "ctrl+h":
+		m.toggleHidden()
 	case "f5":
 		m.Reload()
 	}
@@ -295,6 +293,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	}
 	m.fixScroll()
 	return nil
+}
+
+func isHiddenToggle(ks string) bool { return ks == "." || ks == "ctrl+h" }
+
+func (m *Model) toggleHidden() {
+	m.showHidden = !m.showHidden
+	m.rebuild()
 }
 
 func openCmd(p string) tea.Cmd { return func() tea.Msg { return OpenFileMsg{p} } }
@@ -313,6 +318,9 @@ func (m *Model) View(th theme.Theme, focused bool) string {
 		return s
 	}
 	headText := " " + strings.ToUpper(m.root.name)
+	if m.showHidden && !m.searching {
+		headText += " · " + i18n.T(i18n.ExplorerHiddenOn)
+	}
 	if m.searching {
 		suffix := ""
 		switch {

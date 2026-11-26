@@ -27,6 +27,7 @@ var en = map[Key]string{
 	ExplorerTruncated: "(truncated)",
 	ExplorerSearching: "Searching…",
 	ExplorerTypeHint:  "Type to filter",
+	ExplorerHiddenOn:  "hidden",
 	ExplorerNoResult:  "No results",
 
 	IsDirectory:   "%s is a directory",
@@ -51,7 +52,7 @@ var en = map[Key]string{
 	HelpPanes:      "Panes",
 	HelpPanesText:  "Ctrl+B focus explorer/editor · Ctrl+E show/hide · Esc → editor",
 	HelpExplorer:   "Explorer",
-	HelpExplText:   "↑↓ navigate · Enter open/expand · ← collapse · . hidden files · F5 reload · / search (Esc leaves the search)",
+	HelpExplText:   "↑↓ navigate · Enter open/expand · ← collapse · ./Ctrl+H hidden files · F5 reload · / search (Esc leaves the search)",
 	HelpEdit:       "Edit",
 	HelpEditText:   "Ctrl+Z undo · Ctrl+Y redo · Tab inserts a tab",
 	HelpSelect:     "Selection",

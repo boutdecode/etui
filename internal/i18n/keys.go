@@ -36,6 +36,7 @@ const (
 	ExplorerTruncated Key = "explorer.truncated"
 	ExplorerSearching Key = "explorer.searching"
 	ExplorerTypeHint  Key = "explorer.typeHint"
+	ExplorerHiddenOn  Key = "explorer.hiddenOn"
 	ExplorerNoResult  Key = "explorer.noResult"
 
 	// Application.
